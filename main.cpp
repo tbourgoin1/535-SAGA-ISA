@@ -38,7 +38,7 @@ int main(){
             break;
         }
         else{
-            cout << "please enter a valid command!" << endl;
+            cout << "please enter a valid input!" << endl;
         }
     }
     return 0;
