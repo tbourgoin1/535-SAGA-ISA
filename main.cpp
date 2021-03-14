@@ -81,7 +81,7 @@ string view(string addr, string memLvl){ //prints the tag, index, and offset alo
     }
     else{ //try to find in main ram
         for(int i = 0; i < 64; i++){
-            string line = ram[i]; // gets full 73 char string for line
+            string line = ram[i]; // gets full 39 char string for line
             if(index == line.substr(2, 4)){ //if index is found, check tag
                 if(tag == line.substr(0, 2)){ // if the tag matches too, check the last bit - offset.
                     if(offset == line.substr(6, 1)){ // finally if the offset matches, we can say we found the data in main ram
