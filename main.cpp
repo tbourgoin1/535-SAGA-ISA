@@ -19,31 +19,50 @@ int cycles = 0;
 int write(string addr, string data){ //respond with "wait" or "done", write to mem or cache
     cycles++;
     cout << "write command" << endl;
+    if(addr.size() != 7 || data.size() != 32){
+        cout << "incorrect parameter format passed to write. Try again!";
+        return 0;
+    }
+    //parse input
+    string dirty, valid; // cache only, need to get from the addr passed in by searching cache
+    string tag = addr.substr(0, 2);
+    string index = addr.substr(2, 4);
+    string offset = addr.substr(6, 1);
     return 0;
 }
 
 int read(string addr){ //respond with "wait" or "done" and return stored value
     cycles++;
     cout << "read command" << endl;
+    if(addr.size() != 7){
+        cout << "incorrect parameter format passed to read. Try again!";
+        return 0;
+    }
+    //parse input
+    string dirty, valid; // cache only, need to get from the addr passed in by searching cache
+    string tag = addr.substr(0, 2);
+    string index = addr.substr(2, 4);
+    string offset = addr.substr(6, 1);
     return 0;
 }
 
 // addr is the address we want, memLvl tells us cache or dram (1 or 0, respectively)
 int view(string addr, string memLvl){ //prints the tag, index, and offset along with the data they map to - if level is 1 for cache then also valid and dirty bits
     cout << "view command" << endl;
-    string dirty, valid; // cache only
+    if(addr.size() != 7 || memLvl.size() != 1){
+        cout << "incorrect parameter format passed to view. Try again!";
+        return 0;
+    }
+    //parse input
+    string dirty, valid; // cache only, need to get from the addr passed in by searching cache
     string tag = addr.substr(0, 2);
     string index = addr.substr(2, 4);
     string offset = addr.substr(6, 1);
-    if(memLvl == "1"){ // if we pass in a cache level
-        dirty = addr.substr(7, 1);
-        valid = addr.substr(8, 1);
-    }
     return 0;
 }
 
 int main(){
-    for(int i = 0; i < 2496; i++){ //initializing DRAM and cache to 0
+    for(int i = 0; i < 2496; i++){ //initializing DRAM and cache to all 0's
         ram[i] = 0;
     }
     for(int i = 0; i < 1168; i++){
