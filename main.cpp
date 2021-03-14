@@ -18,9 +18,8 @@ int cycles = 0;
 
 int write(string addr, string data){ //respond with "wait" or "done", write to mem or cache
     cycles++;
-    cout << "write command" << endl;
     if(addr.size() != 7 || data.size() != 32){
-        cout << "incorrect parameter format passed to write. Try again!";
+        cout << "incorrect parameter format passed to write. Try again!" << endl;
         return 0;
     }
     //parse input
@@ -33,9 +32,8 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
 
 int read(string addr){ //respond with "wait" or "done" and return stored value
     cycles++;
-    cout << "read command" << endl;
     if(addr.size() != 7){
-        cout << "incorrect parameter format passed to read. Try again!";
+        cout << "incorrect parameter format passed to read. Try again!" << endl;
         return 0;
     }
     //parse input
@@ -48,9 +46,8 @@ int read(string addr){ //respond with "wait" or "done" and return stored value
 
 // addr is the address we want, memLvl tells us cache or dram (1 or 0, respectively)
 int view(string addr, string memLvl){ //prints the tag, index, and offset along with the data they map to - if level is 1 for cache then also valid and dirty bits
-    cout << "view command" << endl;
     if(addr.size() != 7 || memLvl.size() != 1){
-        cout << "incorrect parameter format passed to view. Try again!";
+        cout << "incorrect parameter format passed to view. Try again!" << endl;
         return 0;
     }
     //parse input
@@ -74,16 +71,16 @@ int main(){
         if(command == "w"){
             cin >> param1;
             cin >> param2;
-            cout << write(param1, param2);
+            cout << "write returned: \n" << write(param1, param2) << endl;
         }
         else if(command == "r"){
             cin >> param1;
-            cout << read(param1);
+            cout << "read returned: \n" << read(param1) << endl;
         }
         else if(command == "v"){
             cin >> param1;
             cin >> param2;
-            cout << view(param1, param2);
+            cout << "view returned: \n" << view(param1, param2) << endl;
         }
         else if(command == "exit"){
             cout << "exiting program..." << endl;
