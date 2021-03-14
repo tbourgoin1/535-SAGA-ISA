@@ -2,8 +2,8 @@
 #include <string>
 using namespace std;
 
-int* ram = new int[2496]; // we want a 4:1 mapping from cache to DRAM - just want minimum DRAM space for demo for now. tag + index + dirty = 7 bits. data = 32 so 39 bit lines total
-int* cache = new int[1168]; // 1 dirty + 1 valid + 2 tag + 4 index + 1 offset + 64 (32 x 2 words per line) data = 73 bits per line x 16 lines for demo = 1168 bit cache
+string* ram[64] = {0}; // we want a 4:1 mapping from cache to DRAM - just want minimum DRAM space for demo for now. tag + index + dirty = 7 bits. data = 32 so 39 bit lines total
+string* cache[16] = {0}; // 1 dirty + 1 valid + 2 tag + 4 index + 1 offset + 64 (32 x 2 words per line) data = 73 bits per line x 16 lines for demo = 1168 bit cache
 int cycles = 0;
 
 // our choice of write policy - we have to do write-through allocate since we have cache and dram. main memory less than address space
@@ -62,12 +62,6 @@ int view(string addr, string memLvl){ //prints the tag, index, and offset along 
 }
 
 int main(){
-    for(int i = 0; i < 2496; i++){ //initializing DRAM and cache to all 0's
-        ram[i] = 0;
-    }
-    for(int i = 0; i < 1168; i++){
-        cache[i] = 0;
-    }
     while(1){
         string command, param1, param2; // command for w, r, or v, 1st parameter for command, 2nd parameter for command, not present with r
         cin >> command; //read in command and test
