@@ -14,22 +14,31 @@ int cycles = 0;
 // keep a count of each W and R command - clock cycle representation (DONE)
 // command line interface (DONE)
 // cache at least "16 lines" (DONE)
-// // need initialization function to set all array elems to 0 - cache lines start invalid and clean (DONE)
+// need initialization function to set all array elems to 0 - cache lines start invalid and clean (DONE)
 
-int write(){ //respond with "wait" or "done"
+int write(string addr, string data){ //respond with "wait" or "done", write to mem or cache
     cycles++;
     cout << "write command" << endl;
     return 0;
 }
 
-int read(){ //respond with "wait" or "done" and return stored value
+int read(string addr){ //respond with "wait" or "done" and return stored value
     cycles++;
     cout << "read command" << endl;
     return 0;
 }
 
-int view(){ //prints a line of values for address - if level is 1 then also tag, valid, dirty bits
+// addr is the address we want, memLvl tells us cache or dram (1 or 0, respectively)
+int view(string addr, string memLvl){ //prints the tag, index, and offset along with the data they map to - if level is 1 for cache then also valid and dirty bits
     cout << "view command" << endl;
+    string dirty, valid; // cache only
+    string tag = addr.substr(0, 2);
+    string index = addr.substr(2, 4);
+    string offset = addr.substr(6, 1);
+    if(memLvl == "1"){ // if we pass in a cache level
+        dirty = addr.substr(7, 1);
+        valid = addr.substr(8, 1);
+    }
     return 0;
 }
 
@@ -41,18 +50,23 @@ int main(){
         cache[i] = 0;
     }
     while(1){
-        string input;
-        cin >> input;
-        if(input == "w"){
-            write();
+        string command, param1, param2; // command for w, r, or v, 1st parameter for command, 2nd parameter for command, not present with r
+        cin >> command; //read in command and test
+        if(command == "w"){
+            cin >> param1;
+            cin >> param2;
+            cout << write(param1, param2);
         }
-        else if(input == "r"){
-            read();
+        else if(command == "r"){
+            cin >> param1;
+            cout << read(param1);
         }
-        else if(input == "v"){
-            view();
+        else if(command == "v"){
+            cin >> param1;
+            cin >> param2;
+            cout << view(param1, param2);
         }
-        else if(input == "exit"){
+        else if(command == "exit"){
             cout << "exiting program..." << endl;
             break;
         }
