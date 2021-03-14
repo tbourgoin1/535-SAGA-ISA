@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <windows.h> //for Sleep
 using namespace std;
 
 int* ram = new int[2496]; // we want a 4:1 mapping from cache to DRAM - just want minimum DRAM space for demo for now. tag + index + dirty = 7 bits. data = 32 so 39 bit lines total
@@ -10,14 +11,14 @@ int cycles = 0;
 // need logic for valid/invalid, clean/dirty cache elements
 // cache 0 delay, main memory 3 delay (3 seconds, ms or somewhere between?)
 // all memory timing and commands related stuff - slides
+// keep a count of each W and R command - clock cycle representation in cache vs dram
 
-// keep a count of each W and R command - clock cycle representation (DONE)
+
 // command line interface (DONE)
 // cache at least "16 lines" (DONE)
 // need initialization function to set all array elems to 0 - cache lines start invalid and clean (DONE)
 
 int write(string addr, string data){ //respond with "wait" or "done", write to mem or cache
-    cycles++;
     if(addr.size() != 7 || data.size() != 32){
         cout << "incorrect parameter format passed to write. Try again!" << endl;
         return 0;
@@ -31,7 +32,6 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
 }
 
 int read(string addr){ //respond with "wait" or "done" and return stored value
-    cycles++;
     if(addr.size() != 7){
         cout << "incorrect parameter format passed to read. Try again!" << endl;
         return 0;
