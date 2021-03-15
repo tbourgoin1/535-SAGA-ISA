@@ -205,7 +205,7 @@ string view(string addr, string memLvl){ //prints the tag, index, and offset alo
     string index = addr.substr(2, 4);
     string offset = addr.substr(6, 1);
     bool found = false;
-
+    /**
     if(memLvl == "1"){ //try to find given addr in cache
         for(int i = 0; i < 16; i++){
             string line = cache[i]; // gets full 73 char string for line
@@ -224,6 +224,23 @@ string view(string addr, string memLvl){ //prints the tag, index, and offset alo
             }
         }
     }
+    **/
+    if(memLvl == "1"){
+        int cache_address = binary_int(stoll(index));
+        string line = cache[cache_address];
+        if(tag == line.substr(0,2)){
+            found = true;
+            dirty = line.substr(7, 1); // get dirty bit from line
+            valid = line.substr(8, 1); // get valid bit from line
+            if(offset == "0"){ //if offset is 0, get first piece of data (word) in line
+                data = line.substr(9, 32);
+            }
+            else{ //if offset is 1, get second piece of data (word) in line
+                data = line.substr(41, 32);
+            }
+        }
+    }
+    /**
     else{ //try to find in main ram
         for(int i = 0; i < 64; i++){
             string line = ram[i]; // gets full 39 char string for line
@@ -237,6 +254,11 @@ string view(string addr, string memLvl){ //prints the tag, index, and offset alo
             }
         }
     }
+    **/
+    else{
+        int ram_address = binary_int(stoll(tag + index));
+        string line = ram[ram_address];
+    }
 
     if(!found && memLvl == "1"){ //couldn't find addr in cache
         return "address not found in cache!";
@@ -248,7 +270,7 @@ string view(string addr, string memLvl){ //prints the tag, index, and offset alo
         return tag, index, offset, dirty, valid, data; //needs to be formatted
     }
     else{ // final case = we asked for and found addr in main RAM
-        return tag, index, offset, data;
+        return tag, index, offset, line;
     }
 }
 
