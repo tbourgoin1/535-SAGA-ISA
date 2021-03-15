@@ -69,7 +69,7 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
             else if (offset == "1"){
                 new_write = addr + "11" + cache[address].substr(9, 32) + data;
             }
-            int ram_address = binary_int( stoll(tag + index + "0") );
+            int ram_address = binary_int( stoll(cache[address].substr(0,2) + index + "0") );
             ram[ram_address] = cache[address].substr(9, 32);
             ram[ram_address+1] = cache[address].substr(41, 32);
 
