@@ -21,6 +21,19 @@ int stage = 0; // no idea, included in slides
 // cache at least "16 lines" (DONE)
 // need initialization function to set all array elems to 0 - cache lines start invalid and clean (DONE)
 
+//converts binary to integer value
+int binary_int(long long n){
+    int num = 0, i = 0, remainder;
+      while (n!=0)
+      {
+          remainder = n%10;
+          n /= 10;
+          num += remainder*pow(2,i);
+          ++i;
+      }
+      return num;
+}
+
 int write(string addr, string data){ //respond with "wait" or "done", write to mem or cache
     if(addr.size() != 7 || data.size() != 32){
         cout << "incorrect parameter format passed to write. Try again!" << endl;
@@ -31,6 +44,7 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
     string tag = addr.substr(0, 2);
     string index = addr.substr(2, 4);
     string offset = addr.substr(6, 1);
+
     return 0;
 }
 
