@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <windows.h> //for Sleep
+#include <cmath>
 using namespace std;
 
 string ram[64]; // we want a 4:1 mapping from cache to DRAM - just want minimum DRAM space for demo for now. tag + index + dirty = 7 bits. data = 32 so 39 bit lines total
@@ -46,6 +47,7 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
     string offset = addr.substr(6, 1);
 
     int address = binary_int(stoll(index));
+    cout << "address " << address << endl;
 
     string new_write;
     if(offset == "0"){
@@ -55,12 +57,16 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
         new_write = addr + "11" + "00000000000000000000000000000000" + data;
     }
 
-    if(cache[address][8] == 0){
+    cout << "new_write " << new_write << endl;
+
+    if(cache[address][8] == '0'){
+        cout << "WRITING..." << endl;
         cache[address] = new_write;
+        cout << cache[address] << endl;
         cycles = cycles + 1;
     }
-    else if(cache[address][8] == 1){
-        if(cache[address][7] == 1){
+    else if(cache[address][8] == '1'){
+        if(cache[address][7] == '1'){
             int ram_address = binary_int( stoll(tag + index + "0") );
             ram[ram_address] = new_write.substr(9, 32);
             ram[ram_address+1] = new_write.substr(41, 32);
@@ -75,7 +81,7 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
             cycles = cycles + 7;
 
         }
-        else if(cache[address][7] == 1){
+        else if(cache[address][7] == '1'){
             cache[address] = new_write;
             cycles = cycles + 1;
         }
@@ -273,6 +279,11 @@ int main(){
         else if(command == "exit"){
             cout << "exiting program..." << endl;
             break;
+        }
+        else if(command == "cache"){
+            for(int i = 0; i < 16; i++){
+                cout << cache[i] << endl;
+            }
         }
         else{
             cout << "please enter a valid input!" << endl;
