@@ -75,9 +75,9 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
 
             for(int i = 0; i < 2; i++){
                 for (int j = 0; j < 2; j++){
-                    cout << "wait";
+                    cout << "wait" << endl;
                 }
-                cout<< "done";
+                cout<< "done" << endl;
             }
             cache[address] = new_write;
             cycles = cycles + 7;
