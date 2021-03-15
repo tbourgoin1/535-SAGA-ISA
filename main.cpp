@@ -69,7 +69,7 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
             else if (offset == "1"){
                 new_write = addr + "11" + cache[address].substr(9, 32) + data;
             }
-            int ram_address = binary_int( stoll(cache[address].substr(0,2) + index + "0") );
+            int ram_address = binary_int( stoll(cache[address].substr(0,2) + index + offset) );
             ram[ram_address] = cache[address].substr(9, 32);
             ram[ram_address+1] = cache[address].substr(41, 32);
 
@@ -85,6 +85,12 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
 
         }
         else if(cache[address][7] == '0'){
+            if(offset == "0"){
+            new_write = addr + "11" + data + cache[address].substr(41, 32);
+            }
+            else if (offset == "1"){
+                new_write = addr + "11" + cache[address].substr(9, 32) + data;
+            }
             cache[address] = new_write;
             cycles = cycles + 1;
         }
@@ -169,16 +175,27 @@ string read(string addr){ //respond with "wait" or "done" and return stored valu
 
     else{ //else the tags didn't equal, so we have a CACHE MISS
         //find the piece of data we want to read in main memory
-        int ram_address = binary_int(stoll(tag + index + offset));
-        string line = ram[ram_address]; // line of main memory we wanted to read - need to put in cache
-        for (int j = 0; j < 2; j++){ // 3 cycle main ram access
-            cout << "wait" << endl;
-            Sleep(300);
-            cycles++;
+        string new_write;
+        int ram_address = binary_int( stoll( tag + index + offset ) );
+        if(offset == "0"){
+            new_write = addr + "01" + ram[ram_address] + cache[cache_address].substr(41, 32);
         }
-        cycles++;
-        cout << "done" << endl;
-        write(tag + index + offset, line);
+        else if (offset == "1"){
+            new_write = addr + "01" + cache[cache_address].substr(9, 32) + ram[ram_address];
+        }
+
+        for(int i = 0; i < 2; i++){
+            for (int j = 0; j < 2; j++){
+                cout << "wait" << endl;
+                Sleep(300);
+            }
+            cout<< "done" << endl;
+            }
+            cache[cache_address] = new_write;
+            ram[ram_address] = cache[cache_address].substr(9, 32);
+            ram[ram_address+1] = cache[cache_address].substr(41, 32);
+            cycles = cycles + 7;
+
         return view(tag + index + offset, "1");
     }
 }
@@ -221,6 +238,9 @@ int main(){
             for(int i = 0; i < 128; i++){
                 cout << ram[i] << endl;
             }
+        }
+        else if(command == "cycles"){
+            cout << "no. of cycles: " << cycles << endl;
         }
         else{
             cout << "please enter a valid input!" << endl;
