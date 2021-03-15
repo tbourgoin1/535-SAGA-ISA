@@ -10,7 +10,6 @@ int cycles = 0; // count of clock cycles
 int count = 0; // used to tell whether memory is handling an access
 int stage = 0; // no idea, included in slides
 
-
 // our choice of write policy - we have to do write-through allocate since we have cache and dram. main memory less than address space
 // need logic for valid/invalid, clean/dirty cache elements
 // cache 0 delay, main memory 3 delay (3 seconds, ms or somewhere between?)
@@ -47,29 +46,32 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
     string offset = addr.substr(6, 1);
 
     int address = binary_int(stoll(index));
-    cout << "address " << address << endl;
+    cout << "writing to address " << address << endl;
 
     string new_write;
-    if(offset == "0"){
-        new_write = addr + "11" + data + "00000000000000000000000000000000";
-    }
-    else if (offset == "1"){
-        new_write = addr + "11" + "00000000000000000000000000000000" + data;
-    }
-
-    cout << "new_write " << new_write << endl;
 
     if(cache[address][8] == '0'){
-        cout << "WRITING..." << endl;
+        if(offset == "0"){
+            new_write = addr + "11" + data + "00000000000000000000000000000000";
+        }
+        else if (offset == "1"){
+            new_write = addr + "11" + "00000000000000000000000000000000" + data;
+        }
         cache[address] = new_write;
         cout << cache[address] << endl;
         cycles = cycles + 1;
     }
     else if(cache[address][8] == '1'){
         if(cache[address][7] == '1'){
+            if(offset == "0"){
+            new_write = addr + "11" + data + cache[address].substr(41, 32);
+            }
+            else if (offset == "1"){
+                new_write = addr + "11" + cache[address].substr(9, 32) + data;
+            }
             int ram_address = binary_int( stoll(tag + index + "0") );
-            ram[ram_address] = new_write.substr(9, 32);
-            ram[ram_address+1] = new_write.substr(41, 32);
+            ram[ram_address] = cache[address].substr(9, 32);
+            ram[ram_address+1] = cache[address].substr(41, 32);
 
             for(int i = 0; i < 2; i++){
                 for (int j = 0; j < 2; j++){
@@ -256,8 +258,10 @@ string view(string addr, string memLvl){ //prints the tag, index, and offset alo
     }
     **/
     else{
-        int ram_address = binary_int(stoll(tag + index));
+        int ram_address = binary_int(stoll(tag + index + offset));
+        found = true;
         string line = ram[ram_address];
+        data = line;
     }
 
     if(!found && memLvl == "1"){ //couldn't find addr in cache
@@ -270,13 +274,13 @@ string view(string addr, string memLvl){ //prints the tag, index, and offset alo
         return tag, index, offset, dirty, valid, data; //needs to be formatted
     }
     else{ // final case = we asked for and found addr in main RAM
-        return tag, index, offset, line;
+        return tag, index, offset, data;
     }
 }
 
 int main(){
     for(int i = 0; i < 128; i++){ //initializing DRAM and cache to all 0's
-        ram[i] = "000000000000000000000000000000000000000"; // 39 character long lines in main ram
+        ram[i] = "00000000000000000000000000000000"; // 32 character long lines in main ram
     }
     for(int i = 0; i < 16; i++){
         cache[i] = "0000000000000000000000000000000000000000000000000000000000000000000000000"; // 73 character long lines in cache
