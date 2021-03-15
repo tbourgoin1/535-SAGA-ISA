@@ -4,7 +4,7 @@
 #include <cmath>
 using namespace std;
 
-string ram[64]; // we want a 4:1 mapping from cache to DRAM - just want minimum DRAM space for demo for now. tag + index + dirty = 7 bits. data = 32 so 39 bit lines total
+string ram[128]; // we want a 4:1 mapping from cache to DRAM - just want minimum DRAM space for demo for now. tag + index + dirty = 7 bits. data = 32 so 39 bit lines total
 string cache[16]; // 2 tag + 4 index + 1 offset + 1 dirty + 1 valid + 64 (32 x 2 words per line) data = 73 bits per line x 16 lines for demo = 1168 bit cache
 int cycles = 0; // count of clock cycles
 int count = 0; // used to tell whether memory is handling an access
@@ -275,7 +275,7 @@ string view(string addr, string memLvl){ //prints the tag, index, and offset alo
 }
 
 int main(){
-    for(int i = 0; i < 64; i++){ //initializing DRAM and cache to all 0's
+    for(int i = 0; i < 128; i++){ //initializing DRAM and cache to all 0's
         ram[i] = "000000000000000000000000000000000000000"; // 39 character long lines in main ram
     }
     for(int i = 0; i < 16; i++){
@@ -305,6 +305,11 @@ int main(){
         else if(command == "cache"){
             for(int i = 0; i < 16; i++){
                 cout << cache[i] << endl;
+            }
+        }
+        else if(command == "ram"){
+            for(int i = 0; i < 128; i++){
+                cout << ram[i] << endl;
             }
         }
         else{
