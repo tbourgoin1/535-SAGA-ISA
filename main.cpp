@@ -76,6 +76,7 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
             for(int i = 0; i < 2; i++){
                 for (int j = 0; j < 2; j++){
                     cout << "wait" << endl;
+                    Sleep(300);
                 }
                 cout<< "done" << endl;
             }
@@ -143,22 +144,15 @@ string read(string addr){ //respond with "wait" or "done" and return stored valu
     }
     //parse input
     string data; //data we find from reading, if applicable
-    string data2; //if we need to write back to cache, this will be the 2nd word for when offset = 1
     string tag = addr.substr(0, 2);
     string index = addr.substr(2, 4);
     string offset = addr.substr(6, 1);
-    string whichData;
-    if(offset == "0"){ //which data to return depending on offset? data or data2?
-        whichData = "1";
-    }
-    else{
-        whichData = "2";
-    }
     bool found = false; // set to true if we find what we're trying to read
-    bool needsEviction = true; // used to identify if we need to replace something in the cache (cache is full & we had a cache miss when reading)
 
     int cache_address = binary_int(stoll(index)); //decimal version of binary cache addr for indexing 
     string line = cache[cache_address]; // the line we want to look at
+    cout << "done" << endl; // 1 cycle cache access
+    cycles++;
     if(tag == line.substr(0, 2)){ // found the index in the cache, now make sure the tags equal. if so, CACHE HIT
         found = true;
         if(offset == "0"){ //if offset is 0, get first piece of data (word) in line
@@ -177,6 +171,13 @@ string read(string addr){ //respond with "wait" or "done" and return stored valu
         //find the piece of data we want to read in main memory
         int ram_address = binary_int(stoll(tag + index + offset));
         string line = ram[ram_address]; // line of main memory we wanted to read - need to put in cache
+        for (int j = 0; j < 2; j++){ // 3 cycle main ram access
+            cout << "wait" << endl;
+            Sleep(300);
+            cycles++;
+        }
+        cycles++;
+        cout << "done" << endl;
         write(tag + index + offset, line);
         return view(tag + index + offset, "1");
     }
@@ -196,7 +197,7 @@ int main(){
         if(command == "w"){
             cin >> param1;
             cin >> param2;
-            cout << "write returned: \n" << write(param1, param2) << endl;
+            write(param1, param2);
         }
         else if(command == "r"){
             cin >> param1;
