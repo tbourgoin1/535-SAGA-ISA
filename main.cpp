@@ -45,20 +45,145 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
     string index = addr.substr(2, 4);
     string offset = addr.substr(6, 1);
 
+    int address = binary_int(stoll(index));
+
+    string new_write;
+    if(offset == "0"){
+        new_write = addr + "11" + data + "00000000000000000000000000000000";
+    }
+    else if (offset == "1"){
+        new_write = addr + "11" + "00000000000000000000000000000000" + data;
+    }
+
+    if(cache[address][8] == 0){
+        cache[address] = new_write;
+        cycles = cycles + 1;
+    }
+    else if(cache[address][8] == 1){
+        if(cache[address][7] == 1){
+            int ram_address = binary_int( stoll(tag + index + "0") );
+            ram[ram_address] = new_write.substr(9, 32);
+            ram[ram_address+1] = new_write.substr(41, 32);
+
+            for(int i = 0; i < 2; i++){
+                for (int j = 0; j < 2; j++){
+                    cout << "wait";
+                }
+                cout<< "done";
+            }
+            cache[address] = new_write;
+            cycles = cycles + 7;
+
+        }
+        else if(cache[address][7] == 1){
+            cache[address] = new_write;
+            cycles = cycles + 1;
+        }
+    }
+
     return 0;
 }
 
-int read(string addr){ //respond with "wait" or "done" and return stored value
+
+string read(string addr){ //respond with "wait" or "done" and return stored value
     if(addr.size() != 7){
         cout << "incorrect parameter format passed to read. Try again!" << endl;
         return 0;
     }
     //parse input
-    string dirty, valid; // cache only, need to get from the addr passed in by searching cache
+    string data; //data we find from reading, if applicable
+    string data2; //if we need to write back to cache, this will be the 2nd word for when offset = 1
     string tag = addr.substr(0, 2);
     string index = addr.substr(2, 4);
     string offset = addr.substr(6, 1);
-    return 0;
+    string whichData;
+    if(offset == "0"){ //which data to return depending on offset? data or data2?
+        whichData = "1";
+    }
+    else{
+        whichData = "2";
+    }
+    bool found = false; // set to true if we find what we're trying to read
+    bool needsEviction = true; // used to identify if we need to replace something in the cache (cache is full & we had a cache miss when reading)
+
+    for(int i = 0; i < 16; i++){ // search the cache first
+        string line = cache[i]; // gets full 73 char string for line
+        if(index == line.substr(2, 4)){ //if index is found, check tag
+            if(tag == line.substr(0, 2)){ // if the tag matches too then we found the addr in cache - READ HIT. get the dirty and valid bits along with the data for the appropriate offset.
+                found = true;
+                if(offset == "0"){ //if offset is 0, get first piece of data (word) in line
+                    data = line.substr(9, 32);
+                }
+                else{ //if offset is 1, get second piece of data (word) in line
+                    data = line.substr(41, 32);
+                }
+            }
+        }
+    }
+    if(found){ //if we had a HIT IN CACHE, return the data we read.
+        return data;
+    }
+    else{ //else we had a miss in the cache, go look for the address in main memory and write back to cache
+        for(int i = 0; i < 64; i++){
+            string line = ram[i]; // gets full 39 char string for line
+            if(index == line.substr(2, 4)){ //if index is found, check tag
+                if(tag == line.substr(0, 2)){ // if the tag matches too, we found the right address. we just need BOTH words for the cache (offset 0 or 1)
+                    if(offset == "0"){ // finally if the offset is 0 or 1, take its data. 0 will be data and 1 will be data2
+                        found = true;
+                        data = line.substr(7, 32); // get data for the address
+                    }
+                    else if(offset == "1"){
+                        found = true;
+                        data2 = line.substr(7, 32);
+                    }
+                }
+            }
+        }
+    }
+    if(!found){
+        return "Something went wrong in read. It couldn't find the data for the address given in cache OR main memory.";
+    }
+    else{ //now that we've found it, we need to write this data back to the cache and make sure to check for dirty bits
+        for(int i = 0; i < 16; i++){ // search the cache for an empty line
+            string line = cache[i]; // gets full 73 char string for line
+            if(line.substr(8, 1) == "0"){ //if the valid bit is not set (therefore invalid), it's an empty line and we can freely write to it. valid bit = 1, dirty bit = 0
+                needsEviction = false; // found empty line, don't need to replace anything
+                cache[i] = tag + index + "0" + "0" + "1" + data + data2; // write tag, index, offset, dirty bit, valid bit, both words (for each offset) to cache. keep the offset as 0 always
+            }
+        }
+        if(needsEviction){ // the cache is full, need to evict a member of it
+            for(int i = 0; i < 16; i++){ // search the cache for the index of our new line we're inserting into the cache
+                string line = cache[i]; // gets full 73 char string for line
+                if(index == line.substr(2, 4)){ // when we find the matching index, evict
+                    if(line.substr(7, 1) == "0"){ // not dirty, so just replace old cache line with our new one
+                        cache[i] = tag + index + "0" + "0" + "1" + data + data2; // write tag, index, offset, dirty bit, valid bit, both words (for each offset) to cache. keep the offset as 0 always
+                        break; //don't need to look anymore
+                    }
+                    else if(line.substr(7, 1) == "1"){ //dirty, need to write both words from current cache line back to main memory
+                        for(int i = 0; i < 64; i++){ // search ram for the index
+                            string line = ram[i]; // gets full 39 char string for line
+                            if(index == line.substr(2, 4)){ //if index is found, check tag
+                                if(tag == line.substr(0, 2)){ // if the tag matches too, we found the right address. we just need to write a diff value depending on offset
+                                    if(line.substr(6, 1) == "0"){ // if offset is 0, write the first 32 bits of the data part of the cache to main memory
+                                        ram[i] = tag + index + data;
+                                    }
+                                    else if(line.substr(6, 1) == "1"){ // if offset is 1, write the second 32 bits of the data part of the cache to main memory
+                                        ram[i] = tag + index + data2;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if(whichData == "1"){
+        return data;
+    }
+    else if(whichData == "2"){
+        return data2;
+    }
 }
 
 // addr is the address we want, memLvl tells us cache or dram (1 or 0, respectively)
