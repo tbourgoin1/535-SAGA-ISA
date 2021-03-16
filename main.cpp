@@ -4,22 +4,11 @@
 #include <cmath>
 using namespace std;
 
-string ram[128]; // we want a 4:1 mapping from cache to DRAM - just want minimum DRAM space for demo for now. tag + index + dirty = 7 bits. data = 32 so 39 bit lines total
-string cache[16]; // 2 tag + 4 index + 1 offset + 1 dirty + 1 valid + 64 (32 x 2 words per line) data = 73 bits per line x 16 lines for demo = 1168 bit cache
+string ram[128]; // 4:1 ram:cache direct mapping with offset
+string cache[16]; // bits | tag: 2 | index: 4 | offset: 1 | valid: 1 | dirty: 1 | data1: 32 | data2: 32
 int cycles = 0; // count of clock cycles
 int count = 0; // used to tell whether memory is handling an access
 int stage = 0; // no idea, included in slides
-
-// our choice of write policy - we have to do write-through allocate since we have cache and dram. main memory less than address space
-// need logic for valid/invalid, clean/dirty cache elements
-// cache 0 delay, main memory 3 delay (3 seconds, ms or somewhere between?)
-// all memory timing and commands related stuff - slides
-// keep a count of each W and R command - clock cycle representation in cache vs dram
-
-
-// command line interface (DONE)
-// cache at least "16 lines" (DONE)
-// need initialization function to set all array elems to 0 - cache lines start invalid and clean (DONE)
 
 //converts binary to integer value
 int binary_int(long long n){
@@ -34,66 +23,47 @@ int binary_int(long long n){
       return num;
 }
 
+string cache_write(string tag, string index, string offset, string dirty, string valid, string data, int cache_address){
+    string new_write;
+    if(offset == "0")
+        new_write = tag + index + offset + dirty + valid + data + cache[cache_address].substr(41, 32);
+    else if (offset == "1")
+        new_write = tag + index + offset + dirty + valid + cache[cache_address].substr(9, 32) + data;
+    return new_write;
+}
+
 int write(string addr, string data){ //respond with "wait" or "done", write to mem or cache
     if(addr.size() != 7 || data.size() != 32){
         cout << "incorrect parameter format passed to write. Try again!" << endl;
-        return 0;
+        return 1;
     }
     //parse input
-    string dirty, valid; // cache only, need to get from the addr passed in by searching cache
+    string dirty = "1"; // writing to cache will always activate dirty bit
+    string valid = "1";
     string tag = addr.substr(0, 2);
     string index = addr.substr(2, 4);
     string offset = addr.substr(6, 1);
-
     int address = binary_int(stoll(index));
+    
     cout << "writing to address " << address << endl;
-
-    string new_write;
-
-    if(cache[address][8] == '0'){
-        if(offset == "0"){
-            new_write = addr + "11" + data + "00000000000000000000000000000000";
-        }
-        else if (offset == "1"){
-            new_write = addr + "11" + "00000000000000000000000000000000" + data;
-        }
-        cache[address] = new_write;
-        cout << cache[address] << endl;
-        cycles = cycles + 1;
+    
+    if(cache[address][7] == '0'){
+        cache[address] = cache_write(tag, index, offset, dirty, valid, data, address);
+        cycles++;
     }
-    else if(cache[address][8] == '1'){
-        if(cache[address][7] == '1'){
-            if(offset == "0"){
-            new_write = addr + "11" + data + cache[address].substr(41, 32);
+    else if(cache[address][7] == '1'){
+        int ram_address = binary_int( stoll(cache[address].substr(0,2) + index + offset) );
+        ram[ram_address] = cache[address].substr(9, 32);
+        ram[ram_address+1] = cache[address].substr(41, 32);
+        for(int i = 0; i < 2; i++){
+            for (int j = 0; j < 2; j++){
+                cout << "wait" << endl;
+                Sleep(300);
             }
-            else if (offset == "1"){
-                new_write = addr + "11" + cache[address].substr(9, 32) + data;
-            }
-            int ram_address = binary_int( stoll(cache[address].substr(0,2) + index + offset) );
-            ram[ram_address] = cache[address].substr(9, 32);
-            ram[ram_address+1] = cache[address].substr(41, 32);
-
-            for(int i = 0; i < 2; i++){
-                for (int j = 0; j < 2; j++){
-                    cout << "wait" << endl;
-                    Sleep(300);
-                }
-                cout<< "done" << endl;
-            }
-            cache[address] = new_write;
-            cycles = cycles + 7;
-
+            cout<< "done" << endl;
         }
-        else if(cache[address][7] == '0'){
-            if(offset == "0"){
-            new_write = addr + "11" + data + cache[address].substr(41, 32);
-            }
-            else if (offset == "1"){
-                new_write = addr + "11" + cache[address].substr(9, 32) + data;
-            }
-            cache[address] = new_write;
-            cycles = cycles + 1;
-        }
+        cache[address] = cache_write(tag, index, offset, dirty, valid, data, address);;
+        cycles = cycles + 7;
     }
 
     return 0;
