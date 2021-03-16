@@ -96,6 +96,7 @@ int write(string addr, string data){ //respond with "wait" or "done", write to m
         }
     }
 
+    cout << "cycle count: " << cycles << endl; // after every write print the # of cycles
     return 0;
 }
 
@@ -170,6 +171,7 @@ string read(string addr){ //respond with "wait" or "done" and return stored valu
     }
 
     if(found){ //if we had a HIT IN CACHE, return the data we read.
+        cout << "cycle count: " << cycles << endl; // after every read print the # of cycles
         return data;
     }
 
@@ -196,6 +198,7 @@ string read(string addr){ //respond with "wait" or "done" and return stored valu
             ram[ram_address+1] = cache[cache_address].substr(41, 32);
             cycles = cycles + 7;
 
+        cout << "cycle count: " << cycles << endl; // after every read print the # of cycles
         return view(tag + index + offset, "1");
     }
 }
