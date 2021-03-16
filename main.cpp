@@ -123,37 +123,24 @@ string read(string addr){ //respond with "wait" or "done" and return stored valu
     string tag = addr.substr(0, 2);
     string index = addr.substr(2, 4);
     string offset = addr.substr(6, 1);
-    bool found = false; // set to true if we find what we're trying to read
 
     int cache_address = binary_int(stoll(index)); //decimal version of binary cache addr for indexing 
     string line = cache[cache_address]; // the line we want to look at
     cout << "done" << endl; // 1 cycle cache access
     cycles++;
     if(tag == line.substr(0, 2)){ // found the index in the cache, now make sure the tags equal. if so, CACHE HIT
-        found = true;
-        if(offset == "0"){ //if offset is 0, get first piece of data (word) in line
+        if(offset == "0") //if offset is 0, get first piece of data (word) in line
             data = line.substr(9, 32);
-        }
-        else{ //if offset is 1, get second piece of data (word) in line
+        else //if offset is 1, get second piece of data (word) in line
             data = line.substr(41, 32);
-        }
-    }
-
-    if(found){ //if we had a HIT IN CACHE, return the data we read.
-        return data;
+        return data; // cache hit
     }
 
     else{ //else the tags didn't equal, so we have a CACHE MISS
         //find the piece of data we want to read in main memory
-        string new_write;
         int ram_address = binary_int( stoll( tag + index + offset ) );
-        if(offset == "0"){
-            new_write = addr + "01" + ram[ram_address] + cache[cache_address].substr(41, 32);
-        }
-        else if (offset == "1"){
-            new_write = addr + "01" + cache[cache_address].substr(9, 32) + ram[ram_address];
-        }
-
+        string dirty = "0";
+        string valid = "1";
         for(int i = 0; i < 2; i++){
             for (int j = 0; j < 2; j++){
                 cout << "wait" << endl;
@@ -161,13 +148,12 @@ string read(string addr){ //respond with "wait" or "done" and return stored valu
             }
             cout<< "done" << endl;
             }
-            cache[cache_address] = new_write;
-            ram[ram_address] = cache[cache_address].substr(9, 32);
-            ram[ram_address+1] = cache[cache_address].substr(41, 32);
+            cache[cache_address] = cache_write(tag, index, offset, dirty, valid, ram[ram_address], cache_address);
             cycles = cycles + 7;
 
-        return view(tag + index + offset, "1");
+        return ram[ram_address]; // return data we just pulled from ram
     }
+
 }
 
 
