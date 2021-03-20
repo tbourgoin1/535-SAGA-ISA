@@ -216,7 +216,7 @@ int main(){
             }
         }
         else if(command == "ram"){
-            for(int i = 0; i < 128; i++){
+            for(int i = 0; i < 256; i++){
                 cout << ram[i] << endl;
             }
         }
