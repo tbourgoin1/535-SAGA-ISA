@@ -2,11 +2,10 @@
 #include <string>
 #include <windows.h> //for Sleep
 #include <cmath>
+#include "memory.h"
 using namespace std;
 
-string ram[256]; // 4:1 ram:cache direct mapping with offset
-string cache[16]; // bits | tag: 2, [0-1] | index: 4, [2-5] | offset: 2, [6-7] | dirty: 1, [8] | valid: 1, [9] | data1: 32, [10-41] | data2: 32, [42-73] | data3: 32, [74-105] | data4: 32, [106 - 137] - 138 character long string
-int cycles = 0; // count of clock cycles
+/**
 int count = 0; // used to tell whether memory is handling an access
 int stage = 0; // no idea, included in slides
 
@@ -188,9 +187,10 @@ string read(string addr){ //respond with "wait" or "done" and return stored valu
     }
 
 }
-
+**/
 
 int main(){
+    /**
     for(int i = 0; i < 256; i++){ //initializing DRAM and cache to all 0's
         ram[i] = "00000000000000000000000000000000"; // 32 character long lines in main ram
     }
@@ -234,6 +234,13 @@ int main(){
         else{
             cout << "please enter a valid input!" << endl;
         }
+    }
+    **/
+    cout << "test" << endl;
+    memory mem;
+    cout << "cycles: " << mem.get_cycles() << endl;
+    for(int i = 0; i < 256; i++){
+        cout<< mem.get_ram()[i] << endl;
     }
     return 0;
 }

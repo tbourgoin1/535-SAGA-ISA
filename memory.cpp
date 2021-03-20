@@ -1,29 +1,24 @@
 #include <iostream>
 #include <string>
-#include <windows.h> //for Sleep
-#include <cmath>
+#include "memory.h"
 using namespace std;
 
-class memory{
-	private:
-		string ram[256]; // 4:1 ram:cache direct mapping with offset
-		string cache[16]; // bits | tag: 2, [0-1] | index: 4, [2-5] | offset: 2, [6-7] | dirty: 1, [8] | valid: 1, [9] | data1: 32, [10-41] | data2: 32, [42-73] | data3: 32, [74-105] | data4: 32, [106 - 137] - 138 character long string
-		int cycles; // count of clock cycles
-	public:
-		memory(string ram[], string cache[], int cycles){
-			ram = this->ram;
-			cache = this->cache;
-			cycles = 0;
-		}
+memory::memory() {
+	for(int i = 0; i < 256; i++){ //initializing DRAM and cache to all 0's
+	  this->ram[i] = "00000000000000000000000000000000"; // 32 character long lines in main ram
+	}
+	for(int i = 0; i < 16; i++){
+	  this->cache[i] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"; // 138 character long lines in cache
+	}
+	this->cycles = 0;
+}
 
-		string *get_ram(){
-			return this->ram;
-		}
-		string *get_cache(){
-			return this->cache;
-		}
-		int get_cycles(){
-			return this->cycles;
-		}
-
-};
+string *memory::get_ram(){
+	return this->ram;
+}
+string *memory::get_cache(){
+	return this->cache;
+}
+int memory::get_cycles(){
+	return this->cycles;
+}
