@@ -15,6 +15,11 @@ class memory{
 		string *get_ram();
 		string *get_cache();
 		int get_cycles();
+		int binary_int(long long n);
+		string cache_write(string tag, string index, string offset, string dirty, string valid, string data, int cache_address);
+		int write(string addr, string data);
+		string view(string addr, string memLvl);
+		string read(string addr);
 	};
 
 #endif
