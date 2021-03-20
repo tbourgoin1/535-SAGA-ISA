@@ -136,8 +136,15 @@ string read(string addr){ //respond with "wait" or "done" and return stored valu
     string tag = addr.substr(0, 2);
     string index = addr.substr(2, 4);
     string offset = addr.substr(6, 2);
-
+    string valid = addr.substr(9, 1);
     int cache_address = binary_int(stoll(index)); //decimal version of binary cache addr for indexing 
+
+    if(valid == "0") {
+        int ram_address = binary_int( stoll( tag + index + "00" ) );
+        new_write = tag + index + offset + dirty + valid + ram[ram_address] + ram[ram_address+1] + ram[ram_address+2] + ram[ram_address+3];
+        cache[cache_address] = new_write;
+    }
+
     string line = cache[cache_address]; // the line of cache we want to initially look at (matches index)
     cout << "done" << endl; // 1 cycle cache access
     cycles++;
