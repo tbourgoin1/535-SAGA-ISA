@@ -6,9 +6,19 @@ using namespace std;
 int count = 0; // used to tell whether memory is handling an access
 int stage = 0; // no idea, included in slides
 
+string int_to_binary(int n) {
+    string r;
+    while(n!=0){
+        r=(n%2==0 ? "0":"1")+r; 
+        n/=2;
+    }
+    return r;
+}
+
 int main(){
     cout << "test" << endl;
     memory mem;
+    /**
     while(1){
         string command, param1, param2; // command for w, r, or v, 1st parameter for command, 2nd parameter for command, not present with r
         cin >> command; //read in command and test
@@ -47,4 +57,8 @@ int main(){
             cout << "please enter a valid input!" << endl;
         }
     }
+    **/
+    cout << int_to_binary(4) << endl;
+    return 0;
 }
+
