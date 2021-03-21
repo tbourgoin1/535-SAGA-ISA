@@ -183,7 +183,7 @@ string memory::read(string addr){ //respond with "wait" or "done" and return sto
         int ram_address = memory::binary_int( stoll( tag + index + offset ) );
         string dirty = "0";
         string valid = "1";
-        for(int i = 0; i < 2; i++){
+        for(int i = 0; i < 4; i++){
             for (int j = 0; j < 2; j++){
                 cout << "wait" << endl;
                 Sleep(300);
@@ -196,7 +196,7 @@ string memory::read(string addr){ //respond with "wait" or "done" and return sto
                 this->ram[old_ram_address + i] = this->cache[cache_address].substr(10 + (32 * i), 32);
             }
             this->cache[cache_address] = memory::cache_write(tag, index, offset, dirty, valid, this->ram[ram_address], cache_address);
-            this->cycles = this->cycles + 7;
+            this->cycles = this->cycles + 13;
 
         cout << "cycle count: " << this->cycles << endl; // after every read print the # of cycles
         return this->ram[ram_address]; // return data we just pulled from ram
