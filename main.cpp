@@ -42,8 +42,7 @@ void writeback(string instruction, string data, string rn, string rd, memory mem
     if(instruction == "STR"){
         cout << "STR, writeback does not need to write to registers." << endl;
     }
-    if(instruction == "NO_OP"){
-        continue; // do nothing
+    if(instruction == "NO_OP"){ // do nothing
     }
 
     global_mem = mem;
