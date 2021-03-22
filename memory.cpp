@@ -157,7 +157,7 @@ string memory::read(string addr){ //respond with "wait" or "done" and return sto
 
     if(valid == "0") {
         int ram_address = memory::binary_int( stoll( tag + index + "00" ) );
-        string new_write = tag + index + offset + dirty + valid + this->ram[ram_address] + this->ram[ram_address+1] + this->ram[ram_address+2] + this->ram[ram_address+3];
+        string new_write = tag + index + offset + dirty + "1" + this->ram[ram_address] + this->ram[ram_address+1] + this->ram[ram_address+2] + this->ram[ram_address+3];
         this->cache[cache_address] = new_write;
     }
 
