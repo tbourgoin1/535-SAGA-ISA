@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 #include "memory.h"
+#include "mainwindow.h"
+#include <QApplication>
 using namespace std;
 
 int count = 0; // used to tell whether memory is handling an access
@@ -125,7 +127,7 @@ void fetch(int pc, memory mem, string reg[]) {
     decode(instruction, mem, reg, pc);
 }
 
-int main(){
+int main(int argc, char *argv[]){
     cout << "test" << endl;
     string reg[16]; // registers
     // LD TEST
@@ -176,6 +178,11 @@ int main(){
     for(int i = 0; i < 256; i++){
         cout<< global_mem.get_ram()[i] << endl;
     }
+
+    QApplication a(argc, argv);
+    MainWindow w;
+    w.show();
+    return a.exec();
     /**
     while(1){
         string command, param1, param2; // command for w, r, or v, 1st parameter for command, 2nd parameter for command, not present with r
