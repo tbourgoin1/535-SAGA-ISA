@@ -1,8 +1,6 @@
 #include <iostream>
 #include <string>
 #include "memory.h"
-#include "mainwindow.h"
-#include <QApplication>
 using namespace std;
 
 int count = 0; // used to tell whether memory is handling an access
@@ -199,10 +197,10 @@ int main(int argc, char *argv[]){
         cout<< global_mem.get_ram()[i] << endl;
     }
 
-    QApplication a(argc, argv);
+    /*QApplication a(argc, argv);
     MainWindow w;
     w.show();
-    return a.exec();
+    return a.exec();*/
     /**
     while(1){
         string command, param1, param2; // command for w, r, or v, 1st parameter for command, 2nd parameter for command, not present with r
