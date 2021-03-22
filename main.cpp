@@ -138,7 +138,7 @@ void fetch(int pc, memory mem, string reg[]) {
     if((current_cycles - prev_cycles) > 1){
         for(int i = 0; i < current_cycles-prev_cycles; i++){
             cout << "NO OP MOMENT" << endl; // no op
-            string no_op = "11110000000000000000000000000000"
+            string no_op = "11110000000000000000000000000000";
             decode(no_op, mem, reg, pc);
         }
     }
