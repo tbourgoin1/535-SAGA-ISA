@@ -42,6 +42,9 @@ void writeback(string instruction, string data, string rn, string rd, memory mem
     if(instruction == "STR"){
         cout << "STR, writeback does not need to write to registers." << endl;
     }
+    if(instruction == "NO_OP"){
+        continue; // do nothing
+    }
 
     global_mem = mem;
     global_pc = pc;
@@ -58,6 +61,9 @@ void memory_pipe(string instruction, string data, string rn, string rd, string s
     if(instruction == "STR"){
         data = reg[mem.binary_int( stoll(rd) )]; // get the data we want to store in memory from the right register
         mem.write(rn, data); // write the value we got from the register to memory
+        writeback(instruction, data, rn, rd, mem, reg, pc);
+    }
+    if(instruction == "NO_OP"){
         writeback(instruction, data, rn, rd, mem, reg, pc);
     }
 }
@@ -84,13 +90,25 @@ void execute(string instruction, string rn, string rd, string shifter, memory me
     if(instruction == "LD" || instruction == "STR"){ // load and store, just call memory pipe. Never stalls.
         memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc); // placeholder for data as it's created in memory_pipe for these instructions
     }
+    if(instruction == "NO_OP") {
+        memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc); //passes in blanks, no op
+    }
 }
 
 //31 30 29 28 27 26 25 24 23 22 21 20 19 18 17 16 15 14 13 12 11 10 9  8  7  6  5  4  3  2  1  0
 //0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
 void decode(string instruction, memory mem, string reg[], int pc) {
     if(instruction.substr(4,1) == "1"){
-        //branch
+        //branch code
+        string target_address = instruction.substr(8, 24);
+    }
+    else if(instruction.substr(0,4) == "1111"){
+        //no op
+        //pass in null param
+        string rn;
+        string rd;
+        string shift_opt;
+        execute("NO_OP", rn, rd, shift_opt, mem, reg, pc);
     }
     else{
         string op_code = instruction.substr(6,5);
@@ -121,6 +139,8 @@ void fetch(int pc, memory mem, string reg[]) {
     if((current_cycles - prev_cycles) > 1){
         for(int i = 0; i < current_cycles-prev_cycles; i++){
             cout << "NO OP MOMENT" << endl; // no op
+            string no_op = "11110000000000000000000000000000"
+            decode(no_op, mem, reg, pc);
         }
     }
     pc++;
