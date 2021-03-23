@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <windows.h> //for Sleep
 #include "memory.h"
 using namespace std;
 
@@ -65,6 +66,8 @@ void memory_pipe(string instruction, string data, string rn, string rd, string s
         data = mem.read(rn); // get value we want from memory
         for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
             cout << "memory stalled, LD read" << endl;
+            //Sleep(300); // read stall
+            
         }
         writeback(instruction, data, rn, rd, mem, reg, pc); // call writeback to store value we got in the register
     }
@@ -74,6 +77,7 @@ void memory_pipe(string instruction, string data, string rn, string rd, string s
         mem.write(rn, data); // write the value we got from the register to memory
         for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
             cout << "memory stalled, STR write" << endl;
+            //Sleep(300); // write stall
         }
         writeback(instruction, data, rn, rd, mem, reg, pc);
     }
@@ -106,12 +110,15 @@ void execute(string instruction, string rn, string rd, string shifter, memory me
     if(instruction == "CMP"){
         if(reg[mem.binary_int( stoll(rn) )] < reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if less than, global_cmp = 00
             rd = "00";
+            cout << "CMP: FIRST OPERAND WAS LESS THAN SECOND OPERAND" << endl;
         }
         else if(reg[mem.binary_int( stoll(rn) )] > reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if greater than, global_cmp = 11
             rd = "11";
+            cout << "CMP: FIRST OPERAND WAS MORE THAN SECOND OPERAND" << endl;
         }
         else{ // if gequal, global_cmp = 01
             rd = "01";
+            cout << "CMP: FIRST OPERAND WAS EQUAL TO SECOND OPERAND" << endl;
         }
         memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc); // placeholder for data, not used in memory_pipe. the "data" is rd
     }
@@ -120,20 +127,27 @@ void execute(string instruction, string rn, string rd, string shifter, memory me
         memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc); // placeholder for data as it's created in memory_pipe for these instructions
     }
     if(instruction == "B"){ // branch - check opcode for cases, check against global_cmp. If any are true, adjust pc back to global_loop. if false, pc moves forward
-        // rd is condition code, rn is target addr (global_loop)
+        // rn is target addr (global_loop), rd is condition code
         if(rd == "0101" || rd == "0110" || rd == "0010"){ // greater than/not equal case
-            if(rn == "11"){ // if > is true, loop back to 1st member of loop
-                pc = mem.binary_int( stoll(global_loop) );
+        cout << "BRANCH GREATER THAN/NOT EQUAL CASE" << endl;
+            if(global_cmp == "11"){ // if > is true, loop back to 1st member of loop
+                pc = mem.binary_int( stoll(rn) );
+                cout << "CMP CONDITION WAS TRUE FOR BRANCH, BRANCH BACK TO FIRST MEMBER OF LOOP" << endl;
             }
         }
         else if(rd == "0011" || rd == "0100" || rd == "0010"){ // less than/not equal case
-            if(rn == "00"){ // if < is true, loop back to 1st member of loop
-                pc = mem.binary_int( stoll(global_loop) );
+            cout << "BRANCH LESS THAN/NOT EQUAL CASE" << endl;
+            cout << "GLOBAL LOOP: " << rn << endl;
+            if(global_cmp == "00"){ // if < is true, loop back to 1st member of loop
+                pc = mem.binary_int( stoll(rn) );
+                cout << "CMP CONDITION WAS TRUE FOR BRANCH, BRANCH BACK TO FIRST MEMBER OF LOOP" << endl;
             }
         }
         else if(rd == "0001" || rd == "0100" || rd == "0110"){ // equals case
-            if(rn == "01"){ // if equals is true, loop back to 1st member of loop
-                pc = mem.binary_int( stoll(global_loop) );
+            cout << "BRANCH EQUAL CASE" << endl;
+            if(global_cmp == "01"){ // if equals is true, loop back to 1st member of loop
+                pc = mem.binary_int( stoll(rn) );
+                cout << "CMP CONDITION WAS TRUE FOR BRANCH, BRANCH BACK TO FIRST MEMBER OF LOOP" << endl;
             }
         }
         memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc);
@@ -150,7 +164,7 @@ void decode(string instruction, memory mem, string reg[], int pc) {
    // cin >> cont;
    //deal with condition codes first
     if(instruction.substr(0, 4) == "0111"){ // LOOP, save this addr in global_loop as 8 bit string as this is the start of a loop
-        global_loop = int_to_binary(pc--);
+        global_loop = int_to_binary(pc - 1);
         cout << "SAVED LOOP ADDR" << endl;
     } 
     if(instruction.substr(0,4) == "1111"){ // special no-op case
@@ -164,28 +178,33 @@ void decode(string instruction, memory mem, string reg[], int pc) {
     else{
         string op_code = instruction.substr(6,5);
         if(op_code == "00000"){ // ADD
+            cout << "ADD IN DECODE" << endl;
             string rn = instruction.substr(12,4); // register with the first operand
             string rd = instruction.substr(16,4); // destination register for result
             string shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
             execute("ADD", rn, rd, shift_opt, mem, reg, pc);
         }
         if(op_code == "01010"){ // CMP
+            cout << "CMP IN DECODE" << endl;
             string rn = instruction.substr(12,4); // register with first operand
             string rd = global_cmp; // destination register, it'll always be global_cmp so we can retain it for next instruction
             string shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
             execute("CMP", rn, rd, shift_opt, mem, reg, pc);
         }
         if(op_code == "01111"){ // LOAD
+            cout << "LD IN DECODE" << endl;
             string rn = instruction.substr(12,8); // Memory address containing value to be loaded
             string rd = instruction.substr(20,4); // Specifies the destination register, which value we want to load the value into
             execute("LD", rn, rd, "000000000000", mem, reg, pc);
         }
         if(op_code == "10001"){ // STORE
+            cout << "STR IN DECODE" << endl;
             string rn = instruction.substr(12,8); // Memory address we want to store the value to
             string rd = instruction.substr(20,4); // Specifies the register that has the value we want to store in memory
             execute("STR", rn, rd, "000000000000", mem, reg, pc);
         }
         if(op_code == "11000"){ // BRANCH
+            cout << "BRANCH IN DECODE" << endl;
             string target_address = global_loop; // address we branch to (will ALWAYS BE global_loop, set pc to this) if the condition is true, otherwise just go to pc++ address
             string condition_code = instruction.substr(0, 4); // need cond code for execute to determine to branch or not
             execute("B", target_address, condition_code, "", mem, reg, pc); // target addr acts as rn in execute, condition code is rd. need no other data besides pc
@@ -199,6 +218,13 @@ void fetch(int pc, memory mem, string reg[]) {
     string instruction_addr = int_to_binary(pc);
     int prev_cycles = mem.get_cycles();
     string instruction = mem.read(instruction_addr);
+    cout << "Fetch reading instruction from memory stall" << endl;
+    //Sleep(300); // read stall
+    cout << instruction << endl;
+    if(instruction == "00000000000000000000000000000000"){
+        cout << "AAAAAAAAAAAAAAAAAAAAAAAA DONE" << endl;
+       exit(0);
+    }
     int current_cycles = mem.get_cycles();
     if((current_cycles - prev_cycles) > 1){
         for(int i = 0; i < current_cycles-prev_cycles; i++){
@@ -214,7 +240,8 @@ void fetch(int pc, memory mem, string reg[]) {
 int main(int argc, char *argv[]){
     cout << "test" << endl;
     string reg[16]; // registers
-    // LD TEST
+
+   /* // LD TEST
     cout << "CYCLES: " << global_mem.get_cycles() << endl;
     global_mem.write("00000000", "01110001111000001000000000000000"); //write 2nd arg to addr in 1st arg. rn address is 00001000 (addr of value we want loaded into register)
     global_mem.write("00001000", "11111111111111111000111111111111"); // write value we want loaded (2nd arg) to mem addr = rn
@@ -257,37 +284,59 @@ int main(int argc, char *argv[]){
     cout << "CYCLES: " << global_mem.get_cycles() << endl;
     cout << "finish\n\n\n\n" << endl;
 
-    // CMP TEST
-    reg[2] = "00000000000000000000000000000001"; // 1st operand
-    reg[3] = "00000000000000000000000000000001"; // 2nd operand
-    cond = "0000";
+
+    // CMP AND LOOP JOINT TEST
+    reg[2] = "00000000000000000000000000000001"; // 1st operand, 1
+    reg[3] = "00000000000000000000000000000001"; // 2nd operand, 1
+    cond = "0111"; // should save loop addr
     is_branch = "0";
     i_bit = "0";
     opcode = "01010";
     s_bit = "0";
-    rn = "0010"; // first operand for add, reg[2] above
-    rd = "0000"; // dest register for add, it'll ALWAYS BE GLOBAL_CMP and is set within decode(), so THIS DOESN'T MATTER
+    rn = "0010"; // first operand, reg[2] above
+    rd = "0000"; // dest register, it'll ALWAYS BE GLOBAL_CMP and is set within decode(), so THIS DOESN'T MATTER
     shifter_operand = "001100000000"; // second operand register (reg[3]) + options for shift and constants
     global_mem.write("00000011", cond + is_branch + i_bit + opcode + s_bit + rn + rd + shifter_operand); // write command to memory
     fetch(global_pc, global_mem, reg);
     cout << "FINISHED CMP EXECUTION. PRINTING RESULTS..." << endl;
-    cout << "RESULT (global_cmp), SHOULD BE 01: \n" + global_cmp << endl;
+    cout << "RESULT (global_cmp), SHOULD BE 01: " + global_cmp << endl;
+    cout << "GLOBAL LOOP, SHOULD BE BINARY VERSION OF THIS INSTRUCTION'S PC (3): " << global_loop << endl;
     cout << "NEW PC: " << global_pc << endl;
     cout << "CYCLES: " << global_mem.get_cycles() << endl;
     cout << "finish\n\n\n\n" << endl;
 
+*/
+    //BRANCH TEST -> THIS IS OUR DEMO PROGRAM
+    string cond = "0011"; // less than cond code
+    string is_branch = "0";
+    string i_bit = "0";
+    string opcode = "11000";
+    string s_bit = "0";
+    string target_address = "00000000000000000000"; // always will be global_loop where we look for this, DOESN'T MATTER
+    global_mem.write("00000000", "00000001111000000110000000000000"); // write first LD instruction to mem[0] (LD mem[6] to reg[0])
+    global_mem.write("00000001", "00000001111000000111000100000000"); // write second LD instruction to mem[1] (LD mem[7] to reg[1])
+    global_mem.write("00000010", "00000001111000001000001000000000");// write third LD instruction to mem[2] (LD mem[8] to reg[2])
+    global_mem.write("00000011", "01110000000000000000000100000000"); // write ADD command to mem[3] (ADD reg[0], reg[0], reg[1])
+    global_mem.write("00000100", "00000001010000000000001000000000");// write CMP command to mem[4]. Compare reg[0] to reg[2], which holds 5 in binary. (CMP reg[0], reg[2], store result in global_cmp)
+    global_mem.write("00000101", "00110011000000000000000000000000"); // write B to mem[5] (BLT global_loop)
+    global_mem.write("00000110", "00000000000000000000000000000000"); // write 0 to mem[6]. we're adding 1 to this value in a loop
+    global_mem.write("00000111", "00000000000000000000000000000001"); // write 1 to mem[7]. This is the "1" we're adding to em[6] every loop
+    global_mem.write("00001000", "00000000000000000000000000000101"); // write 5 to mem[8]. We're CMPing this and mem[6] to see if mem[6] is less than this
+     // write the value we're adding to to memory -> this should be 5 in binary once done
+     // write the value we're adding to the original to memory (just 1 in binary) - shouldn't change
+     while(1){
+         cout << "reg 0. Should have 00000000000000000000000000000101: " << reg[0] << endl;
+        fetch(global_pc, global_mem, reg);
+     }
 
-    //BRANCH TEST -> basically gonna be demo
-
-
-cout << "FULL CACHE AND RAM PRINT\nCACHE:" << endl;
+   /* cout << "FULL CACHE AND RAM PRINT\nCACHE:" << endl;
     for(int i = 0; i < 16; i++){
         cout<< global_mem.get_cache()[i] << endl;
     }
     cout << "MAIN RAM:" << endl;
     for(int i = 0; i < 256; i++){
         cout<< global_mem.get_ram()[i] << endl;
-    }
+    }*/
 
     /*QApplication a(argc, argv);
     MainWindow w;
