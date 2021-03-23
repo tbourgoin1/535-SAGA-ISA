@@ -220,9 +220,8 @@ void fetch(int pc, memory mem, string reg[]) {
     string instruction = mem.read(instruction_addr);
     cout << "Fetch reading instruction from memory stall" << endl;
     //Sleep(300); // read stall
-    cout << instruction << endl;
     if(instruction == "00000000000000000000000000000000"){
-        cout << "AAAAAAAAAAAAAAAAAAAAAAAA DONE" << endl;
+        cout << "No more instructions. DONE" << endl;
        exit(0);
     }
     int current_cycles = mem.get_cycles();
