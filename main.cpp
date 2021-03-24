@@ -451,6 +451,7 @@ int main(int argc, char *argv[]){
     //CONDITION HERE FROM UI ABOUT WHICH CASE TO DO - NO PIPE ETC
 
     // NO CONCURRENT PIPE CASE - INSTRUCTIONS 1 AT A TIME
+    bool multi = false;
     /*
     while(global_pc < pc_limit){
         n++;
@@ -460,33 +461,78 @@ int main(int argc, char *argv[]){
 
 
     // MULTITHREADED CASE - YES PIPE
+    if(multi){
+        vector<thread> thread_list; // list of threads, one per command
+        thread t1, t2, t3, t4, t5;
+        bool is_finished = false;
+        t1 = thread(fetch, global_pc, global_mem, reg);
+        t2 = thread(fetch, global_pc, global_mem, reg);
+    //  t3 = thread(fetch, global_pc, global_mem, reg);
+    // t4 = thread(fetch, global_pc, global_mem, reg);
+    // t5 = thread(fetch, global_pc, global_mem, reg);
+        for(int i = 0; i < 10; i++){
+        {
+            lock_guard<mutex> lk(mtx);
+            ready = true;
+            cout << "main signals ready for stage func" << endl;
+        }
+        cv.notify_one();
 
-    vector<thread> thread_list; // list of threads, one per command
-    thread t1, t2, t3, t4, t5;
-    bool is_finished = false;
-    t1 = thread(fetch, global_pc, global_mem, reg);
-    t2 = thread(fetch, global_pc, global_mem, reg);
-  //  t3 = thread(fetch, global_pc, global_mem, reg);
-   // t4 = thread(fetch, global_pc, global_mem, reg);
-   // t5 = thread(fetch, global_pc, global_mem, reg);
-    for(int i = 0; i < 10; i++){
-    {
-        lock_guard<mutex> lk(mtx);
-        ready = true;
-        cout << "main signals ready for stage func" << endl;
+        //wait for stage func to finish
+        {
+            unique_lock<mutex> lk(mtx);
+            cv.wait(lk, []{return processed;});
+        }
+
+        processed = false;
+        cout << "back in main. Next cycle?" << endl;
+        string x;
+        cin >> x;
+        }
+
+        t1.join();
+        t2.join();
     }
-    cv.notify_one();
+    else{
+        for(int i = 0; i < 18; i++){
+            thread t1 = thread(fetch, global_pc, global_mem, reg);
+            for(int i = 0; i < 5; i++){
+                {
+                    lock_guard<mutex> lk(mtx);
+                    ready = true;
+                    cout << "main signals ready for stage func" << endl;
+                }
+                cv.notify_one();
 
-    //wait for stage func to finish
-    {
-        unique_lock<mutex> lk(mtx);
-        cv.wait(lk, []{return processed;});
+                //wait for stage func to finish
+                {
+                    unique_lock<mutex> lk(mtx);
+                    cv.wait(lk, []{return processed;});
+                }
+
+                processed = false;
+                cout << "reg 0: " << reg[0] << endl;
+                cout << "reg 1: " << reg[1] << endl;
+                cout << "back in main. Next cycle?" << endl;
+                string x;
+                cin >> x;
+             }
+
+             t1.join();
+        }
+
+
+        cout << "reg 0 final result: " << reg[0] << endl;
+
+        cout << "FULL CACHE AND RAM PRINT\nCACHE:" << endl;
+        for(int i = 0; i < 16; i++){
+            cout<< global_mem.get_cache()[i] << endl;
+        }
+        cout << "MAIN RAM:" << endl;
+        for(int i = 0; i < 256; i++){
+            cout<< global_mem.get_ram()[i] << endl;
+        }
     }
-
-    processed = false;
-    cout << "back in main. Next cycle?" << endl;
-    string x;
-    cin >> x;
 
     //2nd thread
 /*
@@ -504,14 +550,6 @@ int main(int argc, char *argv[]){
     }
 
     processed = false;*/
-
-    }
-    for(int i = 0; i < 16; i++){
-        cout << reg[i] << endl;
-    }
-    cout << "reg 0: " << reg[0] << endl;
-    cout << "reg 1: " << reg[1] << endl;
-    cout << "FULL CACHE AND RAM PRINT\nCACHE:" << endl;
     /*for(int i = 0; i < 16; i++){
         cout<< global_mem.get_cache()[i] << endl;
     }
@@ -519,8 +557,6 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < 256; i++){
         cout<< global_mem.get_ram()[i] << endl;
     }*/
-    t1.join();
-    t2.join();
    // t3.join();
    // t4.join();
    // t5.join();
