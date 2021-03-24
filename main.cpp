@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <windows.h> //for Sleep
+#include <fstream> // read text file for commands
 #include "memory.h"
 using namespace std;
 
@@ -240,6 +241,36 @@ int main(int argc, char *argv[]){
     cout << "test" << endl;
     string reg[16]; // registers
 
+    ifstream file_reader; // reads commands.txt for each command
+     string command; // each command from file_reader
+     file_reader.open("commands.txt");
+     if(!file_reader){
+        cerr << "Unable to open file!";
+        exit(1);
+    }
+
+    int pc_limit = 0;
+    while(getline(file_reader, command)){ // read in all commands from file
+        cout << "current command: " << command << endl;
+        if(command.substr(0, 1) == "w"){ //  write something to memory
+            string param1 = command.substr(2, 8); // addr for write
+            string param2 = command.substr(11, 32); // data for write
+            global_mem.write(param1, param2);
+        }
+        else if(command.substr(0, 1) == "r"){ // read from memory
+            string param1 = command.substr(2, 8); // addr for read
+            cout << "read returned: \n" << global_mem.read(param1) << endl;
+        }
+        else if(command.substr(0, 1) == "v"){ // view memory
+            string param1 = command.substr(2, 8); // addr for view
+            string param2 = command.substr(11, 1); // level for view
+            cout << "view returned: \n" << global_mem.view(param1, param2) << endl;
+        }
+        if(command.substr(44, 1) == "p"){ // additional input from the file telling us it's a pipeline instruction - so we know when to stop creating threads
+            pc_limit++;
+        }
+     }
+
    /* // LD TEST
     cout << "CYCLES: " << global_mem.get_cycles() << endl;
     global_mem.write("00000000", "01110001111000001000000000000000"); //write 2nd arg to addr in 1st arg. rn address is 00001000 (addr of value we want loaded into register)
@@ -306,7 +337,7 @@ int main(int argc, char *argv[]){
 
 */
     //BRANCH TEST -> THIS IS OUR DEMO PROGRAM
-    string cond = "0011"; // less than cond code
+    /*string cond = "0011"; // less than cond code
     string is_branch = "0";
     string i_bit = "0";
     string opcode = "11000";
@@ -323,10 +354,12 @@ int main(int argc, char *argv[]){
     global_mem.write("00001000", "00000000000000000000000000000101"); // write 5 to mem[8]. We're CMPing this and mem[6] to see if mem[6] is less than this
      // write the value we're adding to to memory -> this should be 5 in binary once done
      // write the value we're adding to the original to memory (just 1 in binary) - shouldn't change
-     while(1){
-         cout << "reg 0. Should have 00000000000000000000000000000101: " << reg[0] << endl;
+     
+     */while(1){
         fetch(global_pc, global_mem, reg);
+        cout << "reg 0. Should have 00000000000000000000000000000101: " << reg[0] << endl;
      }
+
 
    /* cout << "FULL CACHE AND RAM PRINT\nCACHE:" << endl;
     for(int i = 0; i < 16; i++){
