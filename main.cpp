@@ -91,7 +91,7 @@ void memory_pipe(string instruction, string data, string rn, string rd, string s
         data = mem.read(rn); // get value we want from memory
         for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
             cout << "memory stalled, LD read" << endl;
-            //Sleep(300); // read stall
+            Sleep(300); // read stall
             
         }
         processed = true;
@@ -106,7 +106,7 @@ void memory_pipe(string instruction, string data, string rn, string rd, string s
         mem.write(rn, data); // write the value we got from the register to memory
         for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
             cout << "memory stalled, STR write" << endl;
-            //Sleep(300); // write stall
+            Sleep(300); // write stall
         }
         processed = true;
         ready = false;
@@ -311,7 +311,7 @@ void fetch(int pc, memory mem, string reg[]) {
     int prev_cycles = mem.get_cycles();
     string instruction = mem.read(instruction_addr);
     cout << "Fetch reading instruction from memory stall" << endl;
-    //Sleep(1000); // read stall
+    Sleep(300); // read stall
     int current_cycles = mem.get_cycles();
     if((current_cycles - prev_cycles) > 1){
         for(int i = 0; i < current_cycles-prev_cycles; i++){
@@ -513,6 +513,7 @@ int main(int argc, char *argv[]){
                 processed = false;
                 cout << "reg 0: " << reg[0] << endl;
                 cout << "reg 1: " << reg[1] << endl;
+                cout << "reg 2: " << reg[2] << endl;
                 cout << "back in main. Next cycle?" << endl;
                 string x;
                 cin >> x;
