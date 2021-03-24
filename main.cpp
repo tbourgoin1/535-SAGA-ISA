@@ -67,7 +67,7 @@ void memory_pipe(string instruction, string data, string rn, string rd, string s
         data = mem.read(rn); // get value we want from memory
         for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
             cout << "memory stalled, LD read" << endl;
-            //Sleep(300); // read stall
+            Sleep(300); // read stall
             
         }
         writeback(instruction, data, rn, rd, mem, reg, pc); // call writeback to store value we got in the register
@@ -78,7 +78,7 @@ void memory_pipe(string instruction, string data, string rn, string rd, string s
         mem.write(rn, data); // write the value we got from the register to memory
         for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
             cout << "memory stalled, STR write" << endl;
-            //Sleep(300); // write stall
+            Sleep(300); // write stall
         }
         writeback(instruction, data, rn, rd, mem, reg, pc);
     }
@@ -111,15 +111,12 @@ void execute(string instruction, string rn, string rd, string shifter, memory me
     if(instruction == "CMP"){
         if(reg[mem.binary_int( stoll(rn) )] < reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if less than, global_cmp = 00
             rd = "00";
-            cout << "CMP: FIRST OPERAND WAS LESS THAN SECOND OPERAND" << endl;
         }
         else if(reg[mem.binary_int( stoll(rn) )] > reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if greater than, global_cmp = 11
             rd = "11";
-            cout << "CMP: FIRST OPERAND WAS MORE THAN SECOND OPERAND" << endl;
         }
         else{ // if gequal, global_cmp = 01
             rd = "01";
-            cout << "CMP: FIRST OPERAND WAS EQUAL TO SECOND OPERAND" << endl;
         }
         memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc); // placeholder for data, not used in memory_pipe. the "data" is rd
     }
@@ -130,25 +127,19 @@ void execute(string instruction, string rn, string rd, string shifter, memory me
     if(instruction == "B"){ // branch - check opcode for cases, check against global_cmp. If any are true, adjust pc back to global_loop. if false, pc moves forward
         // rn is target addr (global_loop), rd is condition code
         if(rd == "0101" || rd == "0110" || rd == "0010"){ // greater than/not equal case
-        cout << "BRANCH GREATER THAN/NOT EQUAL CASE" << endl;
             if(global_cmp == "11"){ // if > is true, loop back to 1st member of loop
                 pc = mem.binary_int( stoll(rn) );
-                cout << "CMP CONDITION WAS TRUE FOR BRANCH, BRANCH BACK TO FIRST MEMBER OF LOOP" << endl;
             }
         }
         else if(rd == "0011" || rd == "0100" || rd == "0010"){ // less than/not equal case
-            cout << "BRANCH LESS THAN/NOT EQUAL CASE" << endl;
-            cout << "GLOBAL LOOP: " << rn << endl;
             if(global_cmp == "00"){ // if < is true, loop back to 1st member of loop
                 pc = mem.binary_int( stoll(rn) );
-                cout << "CMP CONDITION WAS TRUE FOR BRANCH, BRANCH BACK TO FIRST MEMBER OF LOOP" << endl;
             }
         }
         else if(rd == "0001" || rd == "0100" || rd == "0110"){ // equals case
             cout << "BRANCH EQUAL CASE" << endl;
             if(global_cmp == "01"){ // if equals is true, loop back to 1st member of loop
                 pc = mem.binary_int( stoll(rn) );
-                cout << "CMP CONDITION WAS TRUE FOR BRANCH, BRANCH BACK TO FIRST MEMBER OF LOOP" << endl;
             }
         }
         memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc);
@@ -166,7 +157,6 @@ void decode(string instruction, memory mem, string reg[], int pc) {
    //deal with condition codes first
     if(instruction.substr(0, 4) == "0111"){ // LOOP, save this addr in global_loop as 8 bit string as this is the start of a loop
         global_loop = int_to_binary(pc - 1);
-        cout << "SAVED LOOP ADDR" << endl;
     } 
     if(instruction.substr(0,4) == "1111"){ // special no-op case
         //no op
@@ -219,8 +209,8 @@ void fetch(int pc, memory mem, string reg[]) {
     string instruction_addr = int_to_binary(pc);
     int prev_cycles = mem.get_cycles();
     string instruction = mem.read(instruction_addr);
-    cout << "Fetch reading instruction from memory stall" << endl;
-    //Sleep(300); // read stall
+    cout << "FETCH READ STALL" << endl;
+    Sleep(300); // read stall
     if(instruction == "00000000000000000000000000000000"){
         cout << "No more instructions. DONE" << endl;
        exit(0);
@@ -228,7 +218,7 @@ void fetch(int pc, memory mem, string reg[]) {
     int current_cycles = mem.get_cycles();
     if((current_cycles - prev_cycles) > 1){
         for(int i = 0; i < current_cycles-prev_cycles; i++){
-            cout << "NO OP MOMENT" << endl; // no op
+            cout << "NO OP" << endl; // no op
             string no_op = "11110000000000000000000000000000"; // cond code = 1111 for no-op
             decode(no_op, mem, reg, pc);
         }
@@ -238,7 +228,6 @@ void fetch(int pc, memory mem, string reg[]) {
 }
 
 int main(int argc, char *argv[]){
-    cout << "test" << endl;
     string reg[16]; // registers
 
     ifstream file_reader; // reads commands.txt for each command
@@ -357,7 +346,7 @@ int main(int argc, char *argv[]){
      
      */while(1){
         fetch(global_pc, global_mem, reg);
-        cout << "reg 0. Should have 00000000000000000000000000000101: " << reg[0] << endl;
+        cout << "reg 0. Should have 00000000000000000000000000000101 at the end of execution: " << reg[0] << endl;
      }
 
 
