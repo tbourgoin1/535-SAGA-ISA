@@ -416,8 +416,7 @@ int main(int argc, char *argv[]){
    // global_mem.write("00001000", "00000000000000000000000000000101"); // write 5 to mem[8]. We're CMPing this and mem[6] to see if mem[6] is less than this
      // write the value we're adding to to memory -> this should be 5 in binary once done
      // write the value we're adding to the original to memory (just 1 in binary) - shouldn't change
-
-
+     
      ifstream file_reader; // reads commands.txt for each command
      string command; // each command from file_reader
      file_reader.open("commands.txt");
