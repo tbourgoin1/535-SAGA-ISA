@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include "memory.h"
+#include "pipe.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -18,8 +19,8 @@ public:
 
 private slots:
     void on_step_clicked();
-    void update_ram_cache();
-    void update_register();
+    void update_ram_cache(pipe p);
+    void update_register(pipe p);
 
 private:
     Ui::MainWindow *ui;

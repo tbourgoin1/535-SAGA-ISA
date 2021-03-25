@@ -8,22 +8,28 @@
 #include <condition_variable>
 #include <future>
 #include "memory.h"
+#include "pipe.h"
 #include "mainwindow.h"
+
 using namespace std;
 
-int count = 0; // used to tell whether memory is handling an access
-int stage = 0; // no idea, included in slides
-memory global_mem;
-int global_pc = 0;
-string global_loop = ""; // dedicated register that holds addr of first member of a loop
-string global_cmp = ""; // dedicated register that holds result of a CMP for future instructions
 mutex mtx; // for locking threads
 condition_variable cv;
-bool ready = false;
-bool processed = false;
-string reg[16]; // registers
 
-string int_to_binary(int n) {
+pipe::pipe()
+{
+    this->count = 0; // used to tell whether memory is handling an access
+    this->stage = 0; // no idea, included in slides
+    this->global_mem;
+    this->global_pc = 0;
+    this->global_loop = ""; // dedicated register that holds addr of first member of a loop
+    this->global_cmp = ""; // dedicated register that holds result of a CMP for future instructions
+    this->ready = false;
+    this->processed = false;
+    this->reg[16]; // registers
+}
+
+string pipe::int_to_binary(int n) {
     string r;
     while(n!=0){
         r=(n%2==0 ? "0":"1")+r; 
@@ -48,9 +54,9 @@ void pipeline(int pc, memory mem) {
 }
 **/
 
-void writeback(string instruction, string data, string rn, string rd, memory mem, string reg[], int pc) {
+void pipe::writeback(string instruction, string data, string rn, string rd, memory mem, string reg[], int pc) {
     unique_lock<mutex> lk(mtx);
-    cv.wait(lk, []{return ready;});
+    cv.wait(lk, [this]{return ready;});
 
     //after wait we now own the lock - execute
     cout << "WRITEBACK" << endl;
@@ -75,9 +81,9 @@ void writeback(string instruction, string data, string rn, string rd, memory mem
     cv.notify_all();
 }
 
-void memory_pipe(string instruction, string data, string rn, string rd, string shifter, memory mem, string reg[], int pc) {
+void pipe::memory_pipe(string instruction, string data, string rn, string rd, string shifter, memory mem, string reg[], int pc) {
     unique_lock<mutex> lk(mtx);
-    cv.wait(lk, []{return ready;});
+    cv.wait(lk, [this]{return ready;});
 
     //after wait we now own the lock - execute
     cout << "MEMORY" << endl;
@@ -125,9 +131,9 @@ void memory_pipe(string instruction, string data, string rn, string rd, string s
     }
 }
 
-void execute(string instruction, string rn, string rd, string shifter, memory mem, string reg[], int pc) {
+void pipe::execute(string instruction, string rn, string rd, string shifter, memory mem, string reg[], int pc) {
     unique_lock<mutex> lk(mtx);
-    cv.wait(lk, []{return ready;});
+    cv.wait(lk, [this]{return ready;});
 
     //after wait we now own the lock - execute
     cout << "EXECUTE" << endl;
@@ -221,16 +227,16 @@ void execute(string instruction, string rn, string rd, string shifter, memory me
 
 //31 30 29 28 27 26 25 24 23 22 21 20 19 18 17 16 15 14 13 12 11 10 9  8  7  6  5  4  3  2  1  0
 //0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
-void decode(string instruction, memory mem, string reg[], int pc) {
+void pipe::decode(string instruction, memory mem, string reg[], int pc) {
    //deal with condition codes first
     //wait for main to give the OK
     unique_lock<mutex> lk(mtx);
-    cv.wait(lk, []{return ready;});
+    cv.wait(lk, [this]{return ready;});
 
     //after wait we now own the lock - execute
     cout << "DECODE" << endl;
     if(instruction.substr(0, 4) == "0111"){ // LOOP, save this addr in global_loop as 8 bit string as this is the start of a loop
-        global_loop = int_to_binary(pc - 1);
+        global_loop = this->int_to_binary(pc - 1);
         cout << "SAVED LOOP ADDR" << endl;
     } 
     if(instruction.substr(0,4) == "1111"){ // special no-op case
@@ -302,14 +308,14 @@ void decode(string instruction, memory mem, string reg[], int pc) {
     }
 }
 
-void fetch(int pc, memory mem, string reg[]) {
+void pipe::fetch(int pc, memory mem, string reg[]) {
     //wait for main to give the OK
     unique_lock<mutex> lk(mtx);
-    cv.wait(lk, []{return ready;});
+    cv.wait(lk, [this]{return ready;});
 
     //after wait we now own the lock - execute
     cout << "FETCH" << endl;
-    string instruction_addr = int_to_binary(pc);
+    string instruction_addr = this->int_to_binary(pc);
     int prev_cycles = mem.get_cycles();
     string instruction = mem.read(instruction_addr);
     cout << "Fetch reading instruction from memory stall" << endl;
@@ -330,82 +336,17 @@ void fetch(int pc, memory mem, string reg[]) {
     decode(instruction, mem, reg, pc);
 }
 
-memory get_mem(){
+memory pipe::get_mem(){
     return global_mem;
 }
 
-string *get_reg(){
-    return reg;
-}
+//string pipe::*get_reg(){
+//    return reg;
+//}
 
-int run_pipe(){
+void pipe::run_pipe(){
     cout << "test" << endl;
 
-   /* // LD TEST
-    cout << "CYCLES: " << global_mem.get_cycles() << endl;
-    global_mem.write("00000000", "01110001111000001000000000000000"); //write 2nd arg to addr in 1st arg. rn address is 00001000 (addr of value we want loaded into register)
-    global_mem.write("00001000", "11111111111111111000111111111111"); // write value we want loaded (2nd arg) to mem addr = rn
-    fetch(global_pc, global_mem, reg);
-    cout << "FINISHED LD EXECUTION. PRINTING RESULTS..." << endl;
-    cout << "reg 0: " << reg[0] << endl;
-    cout << "cache address 00000000: \n" << global_mem.view("00000000", "1") << endl;
-    cout << "NEW PC: " << global_pc << endl;
-    cout << "CYCLES: " << global_mem.get_cycles() << endl;
-    cout << "finish\n\n\n\n" << endl;
-
-    // STR TEST
-    cout << "CYCLES: " << global_mem.get_cycles() << endl;
-    global_mem.write("00000001", "00000010001000000100000100000000"); //write 2nd arg to addr in 1st arg. rn address is 00000100 (addr of memory we want register value in)
-    reg[1] = "11111111111111111111111111111111"; // value we're going to put into the memory address above (00000001)
-    fetch(global_pc, global_mem, reg);
-    cout << "FINISHED STR EXECUTION. PRINTING RESULTS..." << endl;
-    cout << "reg 1, should be all 1's (doesn't change): " << reg[1] << endl;
-    cout << "cache address 00000100, should be all 1's (we stored reg 0's value here): \n" << global_mem.view("00000100", "1") << endl;
-    cout << "NEW PC: " << global_pc << endl;
-    cout << "CYCLES: " << global_mem.get_cycles() << endl;
-    cout << "finish\n\n\n\n" << endl;
-
-    // ADD TEST
-    reg[2] = "00000000000000000000000000000001"; // 1st operand
-    reg[3] = "00000000000000000000000000000001"; // 2nd operand
-    string cond = "0000";
-    string is_branch = "0";
-    string i_bit = "0";
-    string opcode = "00000";
-    string s_bit = "0";
-    string rn = "0010"; // first operand for add, reg[2] above
-    string rd = "0100"; // dest register for add, we want reg[4]
-    string shifter_operand = "001100000000"; // second operand register (reg[3]) + options for shift and constants
-    global_mem.write("00000010", cond + is_branch + i_bit + opcode + s_bit + rn + rd + shifter_operand); // write command to memory
-    fetch(global_pc, global_mem, reg);
-    cout << "FINISHED ADD EXECUTION. PRINTING RESULTS..." << endl;
-    cout << "REG[4], SHOULD BE 00000000000000000000000000000010: \n" + reg[4] << endl;
-    cout << "NEW PC: " << global_pc << endl;
-    cout << "CYCLES: " << global_mem.get_cycles() << endl;
-    cout << "finish\n\n\n\n" << endl;
-
-
-    // CMP AND LOOP JOINT TEST
-    reg[2] = "00000000000000000000000000000001"; // 1st operand, 1
-    reg[3] = "00000000000000000000000000000001"; // 2nd operand, 1
-    cond = "0111"; // should save loop addr
-    is_branch = "0";
-    i_bit = "0";
-    opcode = "01010";
-    s_bit = "0";
-    rn = "0010"; // first operand, reg[2] above
-    rd = "0000"; // dest register, it'll ALWAYS BE GLOBAL_CMP and is set within decode(), so THIS DOESN'T MATTER
-    shifter_operand = "001100000000"; // second operand register (reg[3]) + options for shift and constants
-    global_mem.write("00000011", cond + is_branch + i_bit + opcode + s_bit + rn + rd + shifter_operand); // write command to memory
-    fetch(global_pc, global_mem, reg);
-    cout << "FINISHED CMP EXECUTION. PRINTING RESULTS..." << endl;
-    cout << "RESULT (global_cmp), SHOULD BE 01: " + global_cmp << endl;
-    cout << "GLOBAL LOOP, SHOULD BE BINARY VERSION OF THIS INSTRUCTION'S PC (3): " << global_loop << endl;
-    cout << "NEW PC: " << global_pc << endl;
-    cout << "CYCLES: " << global_mem.get_cycles() << endl;
-    cout << "finish\n\n\n\n" << endl;
-
-*/
     //BRANCH TEST -> THIS IS OUR DEMO PROGRAM
     string cond = "0011"; // less than cond code
     string is_branch = "0";
@@ -424,47 +365,6 @@ int run_pipe(){
     global_mem.write("00001000", "00000000000000000000000000000101"); // write 5 to mem[8]. We're CMPing this and mem[6] to see if mem[6] is less than this
      // write the value we're adding to to memory -> this should be 5 in binary once done
      // write the value we're adding to the original to memory (just 1 in binary) - shouldn't change
-
-     /**
-     //ifstream file_reader; // reads commands.txt for each command
-     string command; // each command from file_reader
-     //string dir = QDir::currentPath().toStdString();
-     //file_reader.open(dir + "/commands.txt");
-     //if(!file_reader){
-     //   cerr << "Unable to open file!";
-     //   exit(1);
-     //}
-     QFile file("commands.txt");
-     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
-        return 1;
-     **/
-
-     /**
-    int pc_limit = 0;
-     //while(getline(file_reader, command)){ // read in all commands from file
-     while(!file.atEnd()){
-         QByteArray line = file.readLine();
-
-         cout << "current command: " << command << endl;
-        if(command.substr(0, 1) == "w"){ //  write something to memory
-            string param1 = command.substr(2, 8); // addr for write
-            string param2 = command.substr(11, 32); // data for write
-            global_mem.write(param1, param2);
-        }
-        else if(command.substr(0, 1) == "r"){ // read from memory
-            string param1 = command.substr(2, 8); // addr for read
-            cout << "read returned: \n" << global_mem.read(param1) << endl;
-        }
-        else if(command.substr(0, 1) == "v"){ // view memory
-            string param1 = command.substr(2, 8); // addr for view
-            string param2 = command.substr(11, 1); // level for view
-            cout << "view returned: \n" << global_mem.view(param1, param2) << endl;
-        }
-        if(command.substr(44, 1) == "p"){ // additional input from the file telling us it's a pipeline instruction - so we know when to stop creating threads
-            pc_limit++;
-        }
-     }
-**/
      
     //CONDITION HERE FROM UI ABOUT WHICH CASE TO DO - NO PIPE ETC
 
@@ -499,7 +399,7 @@ int run_pipe(){
         //wait for stage func to finish
         {
             unique_lock<mutex> lk(mtx);
-            cv.wait(lk, []{return processed;});
+            cv.wait(lk, [this]{return processed;});
         }
 
         processed = false;
@@ -526,7 +426,7 @@ int run_pipe(){
                 //wait for stage func to finish
                 {
                     unique_lock<mutex> lk(mtx);
-                    cv.wait(lk, []{return processed;});
+                    cv.wait(lk, [this]{return processed;});
                 }
 
                 processed = false;
@@ -553,123 +453,6 @@ int run_pipe(){
             cout<< global_mem.get_ram()[i] << endl;
         }
     }
-    //return a.exec();
 
-    //2nd thread
-/*
-    {
-        lock_guard<mutex> lk(mtx);
-        ready = true;
-        cout << "main signals ready for stage func" << endl;
-    }
-    cv.notify_one();
-
-    //wait for stage func to finish
-    {
-        unique_lock<mutex> lk(mtx);
-        cv.wait(lk, []{return processed;});
-    }
-
-    processed = false;*/
-    /*for(int i = 0; i < 16; i++){
-        cout<< global_mem.get_cache()[i] << endl;
-    }
-    cout << "MAIN RAM:" << endl;
-    for(int i = 0; i < 256; i++){
-        cout<< global_mem.get_ram()[i] << endl;
-    }*/
-   // t3.join();
-   // t4.join();
-   // t5.join();
-
-    /*while(1){
-        promise<bool> p;
-        auto future = p.get_future();
-        auto status = future.wait_for(0ms);
-        if(status == future_status::ready){
-            cout << "Thread FINISHED" << endl;
-            is_finished = true;
-            t1.join();
-        }
-        else{
-            cout << "Thread executing..." << endl;
-        }
-    }*/
-   /* while(global_pc < pc_limit){
-        cout << "Number of threads: " << thread_list.size() << endl;
-        cout << "current pc: " << global_pc << endl;
-        thread_list.push_back(thread(fetch, global_pc, global_mem, reg));
-        string x;
-        cin >> x;
-        cout << "reg 0. Should have 00000000000000000000000000000101: " << reg[0] << endl;
-    }
-
-    for(auto &th : thread_list){
-        cout << "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" << endl;
-        th.join();
-    }
-
-    cout << "reg 0. Should have 00000000000000000000000000000101: " << reg[0] << endl;*/
-
-
-
-       /* cout << "reg 0. Should have 00000000000000000000000000000101: " << reg[0] << endl;
-        thread new_thread(fetch, global_pc, global_mem, reg);
-        new_thread.join(); // waits till thread is done*/
-
-   /* cout << "FULL CACHE AND RAM PRINT\nCACHE:" << endl;
-    for(int i = 0; i < 16; i++){
-        cout<< global_mem.get_cache()[i] << endl;
-    }
-    cout << "MAIN RAM:" << endl;
-    for(int i = 0; i < 256; i++){
-        cout<< global_mem.get_ram()[i] << endl;
-    }*/
-
-    /*QApplication a(argc, argv);
-    MainWindow w;
-    w.show();
-    return a.exec();*/
-    /**
-    while(1){
-        string command, param1, param2; // command for w, r, or v, 1st parameter for command, 2nd parameter for command, not present with r
-        cin >> command; //read in command and test
-        if(command == "w"){
-            cin >> param1;
-            cin >> param2;
-            mem.write(param1, param2);
-        }
-        else if(command == "r"){
-            cin >> param1;
-            cout << "read returned: \n" << mem.read(param1) << endl;
-        }
-        else if(command == "v"){
-            cin >> param1;
-            cin >> param2;
-            cout << "view returned: \n" << mem.view(param1, param2) << endl;
-        }
-        else if(command == "exit"){
-            cout << "exiting program..." << endl;
-            break;
-        }
-        else if(command == "cache"){
-            for(int i = 0; i < 16; i++){
-                cout<< mem.get_cache()[i] << endl;
-            }
-        }
-        else if(command == "ram"){
-            for(int i = 0; i < 256; i++){
-                cout<< mem.get_ram()[i] << endl;
-            }
-        }
-        else if(command == "cycles"){
-            cout<< mem.get_cycles() << endl;
-        }
-        else{
-            cout << "please enter a valid input!" << endl;
-        }
-    }
-    **/
-    return 0;
 }
 

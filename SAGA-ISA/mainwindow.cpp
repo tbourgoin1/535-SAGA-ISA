@@ -14,9 +14,9 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::update_ram_cache()
+void MainWindow::update_ram_cache(pipe p)
 {
-    memory mem = get_mem();
+    memory mem = p.get_mem();
     std::string ram_list = mem.get_ram()[0];
     for(int i = 1; i < 256; i++){
         ram_list = ram_list + "\n\n" + mem.get_ram()[i];
@@ -41,9 +41,9 @@ void MainWindow::update_ram_cache()
     ui->cache_browser->setText(cache);
 }
 
-void MainWindow::update_register()
+void MainWindow::update_register(pipe p)
 {
-    string *reg = get_reg();
+    string *reg = p.get_reg();
     std::string reg_list = reg[0];
     for(int i = 1; i < 16; i++){
         reg_list = reg_list + "\n\n" + reg[i];
@@ -56,7 +56,8 @@ void MainWindow::update_register()
 
 void MainWindow::on_step_clicked()
 {
-    run_pipe();
-    update_ram_cache();
-    update_register();
+    pipe p = pipe();
+    p.run_pipe();
+    update_ram_cache(p);
+    update_register(p);
 }
