@@ -2,6 +2,7 @@
 #include <string>
 #include <windows.h> //for Sleep
 #include <fstream> // read text file for commands
+#include <vector>
 #include "memory.h"
 using namespace std;
 
@@ -11,6 +12,15 @@ memory global_mem;
 int global_pc = 0;
 string global_loop = ""; // dedicated register that holds addr of first member of a loop
 string global_cmp = ""; // dedicated register that holds result of a CMP for future instructions
+
+struct to_return{ // used to return from each stage
+    string ins_type;
+    string instruction;
+    string data;
+    string rn; 
+    string rd;
+    string shifter;
+};
 
 string int_to_binary(int n) {
     string r;
@@ -38,193 +48,216 @@ void pipeline(int pc, memory mem) {
 **/
 
 void writeback(string instruction, string data, string rn, string rd, memory mem, string reg[], int pc) {
-   // string cont; // for freezing execution after every cycle (TRANSLATE TO UI)
-    //cin >> cont;
     if(instruction == "ADD" || instruction == "LD"){ // these instructions do the same thing - update registers with new data found in last step
         reg[mem.binary_int( stoll(rd) )] = data;
     }
     if(instruction == "CMP"){
         global_cmp = rd; // update the global cmp result with rd, calculated in execute
     }
-    if(instruction == "STR" || instruction == "B"){
+    if(instruction == "STR"){
         cout << "writeback does not need to write to registers for this instruction." << endl;
+    }
+    if(instruction == "B"){
+        global_pc = pc;
     }
     if(instruction == "NO_OP"){ // do nothing
     }
 
-    global_mem = mem;
-    global_pc = pc;
 }
 
-void memory_pipe(string instruction, string data, string rn, string rd, string shifter, memory mem, string reg[], int pc) {
-    //string cont; // for freezing execution after every cycle (TRANSLATE TO UI)
-   // cin >> cont;
+to_return memory_pipe(string instruction, string data, string rn, string rd, string shifter, memory mem, string reg[], int pc) {
     if(instruction == "ADD" || instruction == "CMP" || instruction == "B"){ // no interaction with memory for ALU ops or branch, just call writeback
-        writeback(instruction, data, rn, rd, mem, reg, pc);
     }
+
     if(instruction == "LD"){ // read the value from memory we want to store in a register. CAN STALL IF CACHE MISS.
         int prev_cycles = mem.get_cycles();
         data = mem.read(rn); // get value we want from memory
         for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
             cout << "memory stalled, LD read" << endl;
-            Sleep(300); // read stall
-            
+            Sleep(300); // read stall   
         }
-        writeback(instruction, data, rn, rd, mem, reg, pc); // call writeback to store value we got in the register
     }
+
     if(instruction == "STR"){
         data = reg[mem.binary_int( stoll(rd) )]; // get the data we want to store in memory from the right register
         int prev_cycles = mem.get_cycles();
         mem.write(rn, data); // write the value we got from the register to memory
+        global_mem = mem;
         for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
             cout << "memory stalled, STR write" << endl;
             Sleep(300); // write stall
         }
-        writeback(instruction, data, rn, rd, mem, reg, pc);
     }
     if(instruction == "NO_OP"){ // don't do anything, continue to pass blanks
-        writeback(instruction, data, rn, rd, mem, reg, pc);
     }
+
+    to_return me;
+    me.ins_type = "W";
+    me.instruction = instruction;
+    me.rn = rn;
+    me.rd = rd;
+    me.shifter = shifter;
+    me.data = data;
+    return me;
+    
 }
 
-void execute(string instruction, string rn, string rd, string shifter, memory mem, string reg[], int pc) {
-    //string cont; // for freezing execution after every cycle (TRANSLATE TO UI)
-    //cin >> cont;
+to_return execute(string instruction, string rn, string rd, string shifter, memory mem, string reg[], int pc) {
+    string data = "";
     if(instruction == "ADD"){
         string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]
         string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
-        string result = "";
         int digit_sum = 0;
         int op1_size = op1.size() - 1;
         int op2_size = op2.size() - 1;
         while( op1_size >= 0 || op2_size >= 0 || digit_sum == 1){
             digit_sum += ((op1_size) ? op1[op1_size] - '0' : 0);
             digit_sum += ((op2_size) ? op2[op2_size] - '0' : 0);
-            result = char(digit_sum % 2 + '0') + result; 
+            data = char(digit_sum % 2 + '0') + data; 
             digit_sum /= 2; // carry
             op1_size--; // move to next op1 char
             op2_size--; // move to next op2 char
         }
-        memory_pipe(instruction, result, rn, rd, shifter, mem, reg, pc);
     }
 
     if(instruction == "CMP"){
         if(reg[mem.binary_int( stoll(rn) )] < reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if less than, global_cmp = 00
             rd = "00";
+            global_cmp = rd;
         }
         else if(reg[mem.binary_int( stoll(rn) )] > reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if greater than, global_cmp = 11
             rd = "11";
+            global_cmp = rd;
         }
-        else{ // if gequal, global_cmp = 01
+        else{ // if equal, global_cmp = 01
             rd = "01";
+            global_cmp = rd;
         }
-        memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc); // placeholder for data, not used in memory_pipe. the "data" is rd
     }
     
-    if(instruction == "LD" || instruction == "STR"){ // load and store, just call memory pipe. Never stalls.
-        memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc); // placeholder for data as it's created in memory_pipe for these instructions
+    if(instruction == "LD" || instruction == "STR"){ // load and store, do nothing. never stalls
     }
+
     if(instruction == "B"){ // branch - check opcode for cases, check against global_cmp. If any are true, adjust pc back to global_loop. if false, pc moves forward
         // rn is target addr (global_loop), rd is condition code
         if(rd == "0101" || rd == "0110" || rd == "0010"){ // greater than/not equal case
             if(global_cmp == "11"){ // if > is true, loop back to 1st member of loop
                 pc = mem.binary_int( stoll(rn) );
+                global_pc = pc;
             }
         }
         else if(rd == "0011" || rd == "0100" || rd == "0010"){ // less than/not equal case
             if(global_cmp == "00"){ // if < is true, loop back to 1st member of loop
                 pc = mem.binary_int( stoll(rn) );
+                global_pc = pc;
             }
         }
         else if(rd == "0001" || rd == "0100" || rd == "0110"){ // equals case
             cout << "BRANCH EQUAL CASE" << endl;
             if(global_cmp == "01"){ // if equals is true, loop back to 1st member of loop
                 pc = mem.binary_int( stoll(rn) );
+                global_pc = pc;
             }
         }
-        memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc);
     }
     if(instruction == "NO_OP") {
-        memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc); //passes in blanks, no op
+        //memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc); //passes in blanks, no op
     }
+    to_return me;
+    me.ins_type = "M";
+    me.instruction = instruction;
+    me.rn = rn;
+    me.rd = rd;
+    me.shifter = shifter;
+    me.data = data;
+    return me;
 }
 
 //31 30 29 28 27 26 25 24 23 22 21 20 19 18 17 16 15 14 13 12 11 10 9  8  7  6  5  4  3  2  1  0
 //0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
-void decode(string instruction, memory mem, string reg[], int pc) {
-    //string cont; // for freezing execution after every cycle (TRANSLATE TO UI)
-   // cin >> cont;
+to_return decode(string instruction, memory mem, string reg[], int pc) {
    //deal with condition codes first
     if(instruction.substr(0, 4) == "0111"){ // LOOP, save this addr in global_loop as 8 bit string as this is the start of a loop
         global_loop = int_to_binary(pc - 1);
-    } 
+    }
+    string rn;
+    string rd;
+    string shift_opt;
     if(instruction.substr(0,4) == "1111"){ // special no-op case
         //no op
-        //pass in null params
-        string rn;
-        string rd;
-        string shift_opt;
-        execute("NO_OP", rn, rd, shift_opt, mem, reg, pc);
+        //pass in null param
+       // execute("NO_OP", rn, rd, shift_opt, mem, reg, pc);
     }
     else{
         string op_code = instruction.substr(6,5);
         if(op_code == "00000"){ // ADD
             cout << "ADD IN DECODE" << endl;
-            string rn = instruction.substr(12,4); // register with the first operand
-            string rd = instruction.substr(16,4); // destination register for result
-            string shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
-            execute("ADD", rn, rd, shift_opt, mem, reg, pc);
+            rn = instruction.substr(12,4); // register with the first operand
+            rd = instruction.substr(16,4); // destination register for result
+            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+            instruction = "ADD";
         }
         if(op_code == "01010"){ // CMP
             cout << "CMP IN DECODE" << endl;
-            string rn = instruction.substr(12,4); // register with first operand
-            string rd = global_cmp; // destination register, it'll always be global_cmp so we can retain it for next instruction
-            string shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
-            execute("CMP", rn, rd, shift_opt, mem, reg, pc);
+            rn = instruction.substr(12,4); // register with first operand
+            rd = global_cmp; // destination register, it'll always be global_cmp so we can retain it for next instruction
+            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+            instruction = "CMP";
         }
         if(op_code == "01111"){ // LOAD
             cout << "LD IN DECODE" << endl;
-            string rn = instruction.substr(12,8); // Memory address containing value to be loaded
-            string rd = instruction.substr(20,4); // Specifies the destination register, which value we want to load the value into
-            execute("LD", rn, rd, "000000000000", mem, reg, pc);
+            rn = instruction.substr(12,8); // Memory address containing value to be loaded
+            rd = instruction.substr(20,4); // Specifies the destination register, which value we want to load the value into
+            instruction = "LD";
         }
         if(op_code == "10001"){ // STORE
             cout << "STR IN DECODE" << endl;
-            string rn = instruction.substr(12,8); // Memory address we want to store the value to
-            string rd = instruction.substr(20,4); // Specifies the register that has the value we want to store in memory
-            execute("STR", rn, rd, "000000000000", mem, reg, pc);
+            rn = instruction.substr(12,8); // Memory address we want to store the value to
+            rd = instruction.substr(20,4); // Specifies the register that has the value we want to store in memory
+            instruction = "STR";
         }
         if(op_code == "11000"){ // BRANCH
             cout << "BRANCH IN DECODE" << endl;
-            string target_address = global_loop; // address we branch to (will ALWAYS BE global_loop, set pc to this) if the condition is true, otherwise just go to pc++ address
-            string condition_code = instruction.substr(0, 4); // need cond code for execute to determine to branch or not
-            execute("B", target_address, condition_code, "", mem, reg, pc); // target addr acts as rn in execute, condition code is rd. need no other data besides pc
+            rn = global_loop; // address we branch to (will ALWAYS BE global_loop, set pc to this) if the condition is true, otherwise just go to pc++ address
+            rd = instruction.substr(0, 4); // need cond code for execute to determine to branch or not
+            instruction = "B";
         }
     }
+
+    to_return me;
+    me.ins_type = "E";
+    me.instruction = instruction;
+    me.rn = rn;
+    me.rd = rd;
+    me.shifter = shift_opt;
+    me.data = "";
+    return me;
 }
 
-void fetch(int pc, memory mem, string reg[]) {
-    /*string cont; // for freezing execution after every cycle (TRANSLATE TO UI)
-    cin >> cont;*/
+to_return fetch(int pc, memory mem, string reg[]) {
     string instruction_addr = int_to_binary(pc);
     int prev_cycles = mem.get_cycles();
     string instruction = mem.read(instruction_addr);
     cout << "FETCH READ STALL" << endl;
     Sleep(300); // read stall
-    if(instruction == "00000000000000000000000000000000"){
-        cout << "No more instructions. DONE" << endl;
-       exit(0);
-    }
     int current_cycles = mem.get_cycles();
     if((current_cycles - prev_cycles) > 1){
         for(int i = 0; i < current_cycles-prev_cycles; i++){
             cout << "NO OP" << endl; // no op
             string no_op = "11110000000000000000000000000000"; // cond code = 1111 for no-op
-            decode(no_op, mem, reg, pc);
+           // decode(no_op, mem, reg, pc);
         }
     }
     pc++;
-    decode(instruction, mem, reg, pc);
+    global_pc = pc;
+    to_return me;
+    me.ins_type = "D";
+    me.instruction = instruction;
+    me.data = "";
+    me.rn = ""; 
+    me.rd = "";
+    me.shifter = "";
+    return me;
 }
 
 int main(int argc, char *argv[]){
@@ -344,10 +377,63 @@ int main(int argc, char *argv[]){
      // write the value we're adding to to memory -> this should be 5 in binary once done
      // write the value we're adding to the original to memory (just 1 in binary) - shouldn't change
      
-     */while(1){
+     while(1){
         fetch(global_pc, global_mem, reg);
         cout << "reg 0. Should have 00000000000000000000000000000101 at the end of execution: " << reg[0] << endl;
-     }
+     }*/
+
+    //CONCURRENCY CASE
+    // vector always of size 5 that'll hold our current instructions. has ins_type and all possible args for each stage
+    vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
+    vector<string> new_ins = {"F", "", "", "", "", ""}; // used throughout to add new instructions
+    instructs.push_back(new_ins); // first fetch instruction params now in instructs vector
+    to_return ret_val;
+    while(!instructs.empty()){ // until we run out of instructions
+        int cur_pipe_size = instructs.size();
+        cout << "REGISTER 0: " << reg[0] << endl;
+        cout << "REGISTER 1: " << reg[1] << endl;
+        cout << "REGISTER 2: " << reg[2] << endl;
+        cout << "CURRENT PC: " << global_pc << endl;
+        for(int i = 0; i < cur_pipe_size; i++){ // look at each of the instructions in the pipe
+        cout << "pipe size: " << instructs.size() << endl;
+        cout << instructs[0][0] << instructs[0][1] << instructs[0][2] << instructs[0][3] << instructs[0][4] << instructs[0][5] << endl;
+            if(instructs[0][0] == "F"){ // FETCH CASE
+                ret_val = fetch(global_pc, global_mem, reg); //  execute fetch
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+            }
+            else if(instructs[0][0] == "D"){ // DECODE CASE
+                ret_val = decode(instructs[0][1], global_mem, reg, global_pc); //  execute decode w/ instruction as first arg
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+            }
+            else if(instructs[0][0] == "E"){ // EXECUTE CASE
+                ret_val = execute(instructs[0][1], instructs[0][3], instructs[0][4], instructs[0][5], global_mem, reg, global_pc); //  execute fetch
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+            }
+            else if(instructs[0][0] == "M"){ // MEMORY CASE
+                ret_val = memory_pipe(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][5], global_mem, reg, global_pc); //  execute memory_pipe
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+            }
+            else if(instructs[0][0] == "W"){ // WRITEBACK CASE
+                writeback(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], global_mem, reg, global_pc); //  execute writeback, no need for return val
+                instructs.erase(instructs.begin()); // take out the instruction just used
+            }
+        }
+        if(instructs.size() < 5 && pc_limit - global_pc > 0){ // pipe isn't full, add there IS a next instruction to add. so add it
+            new_ins = {"F", "", "", "", "", ""}; 
+            instructs.push_back(new_ins);
+        }
+
+    }
+
+
 
 
    /* cout << "FULL CACHE AND RAM PRINT\nCACHE:" << endl;
