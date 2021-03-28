@@ -260,7 +260,55 @@ to_return fetch(int pc, memory mem, string reg[]) {
     return me;
 }
 
-void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string reg[], int pc_limit){
+void single_instruction_pipe_with_cache(vector<vector<string>> instructs, string reg[], int pc_limit){
+    to_return ret_val;
+    vector<string> new_ins;
+    while(!instructs.empty()){ // until we run out of instructions
+        int cur_pipe_size = 1;
+        cout << "REGISTER 0: " << reg[0] << endl;
+        cout << "REGISTER 1: " << reg[1] << endl;
+        cout << "REGISTER 2: " << reg[2] << endl;
+        cout << "CURRENT PC: " << global_pc << endl;
+        for(int i = 0; i < cur_pipe_size; i++){ // look at each of the instructions in the pipe
+        cout << "pipe size: " << instructs.size() << endl;
+        cout << instructs[0][0] << instructs[0][1] << instructs[0][2] << instructs[0][3] << instructs[0][4] << instructs[0][5] << endl;
+            if(instructs[0][0] == "F"){ // FETCH CASE
+                ret_val = fetch(global_pc, global_mem, reg); //  execute fetch
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+            }
+            else if(instructs[0][0] == "D"){ // DECODE CASE
+                ret_val = decode(instructs[0][1], global_mem, reg, global_pc); //  execute decode w/ instruction as first arg
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+            }
+            else if(instructs[0][0] == "E"){ // EXECUTE CASE
+                ret_val = execute(instructs[0][1], instructs[0][3], instructs[0][4], instructs[0][5], global_mem, reg, global_pc); //  execute fetch
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+            }
+            else if(instructs[0][0] == "M"){ // MEMORY CASE
+                ret_val = memory_pipe(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][5], global_mem, reg, global_pc); //  execute memory_pipe
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+            }
+            else if(instructs[0][0] == "W"){ // WRITEBACK CASE
+                writeback(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], global_mem, reg, global_pc); //  execute writeback, no need for return val
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                if(pc_limit - global_pc > 0){
+                    new_ins = {"F", "", "", "", "", ""}; // now that the current instruction is done, add the next in
+                    instructs.push_back(new_ins);
+                }
+            }
+        }
+    }
+}
+
+void fully_concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string reg[], int pc_limit){
     to_return ret_val;
     vector<string> new_ins;
     while(!instructs.empty()){ // until we run out of instructions
@@ -298,7 +346,7 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
                                     instructs.erase(instructs.begin()+j);
                                 }
                             }
-                            concurrent_pipe(hazard_instructs, true, reg, pc_limit); // execute those blocking instructions only to completion
+                            fully_concurrent_pipe(hazard_instructs, true, reg, pc_limit); // execute those blocking instructions only to completion
                             break; // now that we've found a blocking ins and executed it, stop the loop. Continue with the instructions we have in the original vector  
                         }
                     }
@@ -457,7 +505,30 @@ int main(int argc, char *argv[]){
     vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
     vector<string> new_ins = {"F", "", "", "", "", ""}; // used throughout to add new instructions
     instructs.push_back(new_ins); // first fetch instruction params now in instructs vector
-    concurrent_pipe(instructs, false, reg, pc_limit); // execute multithreaded pipeline
+    cout << "Please enter which mode you would like to execute the pipeline in:\n00 = no cache, no pipe\n01 = no cache, yes pipe, 10 = yes cache, no pipe, 11 = yes cache, yes pipe" << endl;
+    string run_mode;
+    while(1){
+        cin >> run_mode;
+        if(run_mode == "00"){
+            cout << "Mode not supported yet, exiting..." << endl;
+            break;
+        }
+        if(run_mode == "01"){
+            cout << "Mode not supported yet, exiting..." << endl;
+            break;
+        }
+        if(run_mode == "10"){
+            single_instruction_pipe_with_cache(instructs, reg, pc_limit);
+            break;
+        }
+        if(run_mode == "11"){
+            fully_concurrent_pipe(instructs, false, reg, pc_limit); // execute multithreaded pipeline
+            break;
+        }
+        else{
+            cout << "Incorrect input, try again" << endl;
+        }
+    }
 
 
 
