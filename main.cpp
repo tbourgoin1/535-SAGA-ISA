@@ -281,6 +281,28 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
             else if(instructs[0][0] == "D"){ // DECODE CASE
                 ret_val = decode(instructs[0][1], global_mem, reg, global_pc); //  execute decode w/ instruction as first arg
                 instructs.erase(instructs.begin()); // take out the instruction just used
+                //BRANCH CASE HERE
+                for(int i = 0; i < instructs.size(); i++){ // check for hazards
+                    if(instructs[i][0] != "F" && instructs[i][0] != "D"){ // only check instructions ahead of current in pipe
+                        // compare rn, rd, and shifter to see if we're going to use the same ones in the future that the current ins that just decoded uses - HAZARD IF SO
+                        cout << "HAZARD OCCURRED, EXECUTING BLOCKING INSTRUCTIONS" << endl;
+                        if(ret_val.rn == instructs[i][3] || ret_val.rd == instructs[i][4] || ret_val.shifter.substr(0, 4) == instructs[i][5].substr(0, 4)){
+                            vector<vector<string>> hazard_instructs;
+                            for(int j = i; j < instructs.size(); j++){ // add stalling instruction and all after it to new vector
+                                if(instructs[j][0] != "F" && instructs[j][0] != "D"){ // only check instructions ahead of current in pipe
+                                    hazard_instructs.push_back(instructs[j]);
+                                }
+                            }
+                            for(int j = i; j < instructs.size(); j++){ // remove instructions added to new vector from original
+                                if(instructs[j][0] != "F" && instructs[j][0] != "D"){ // only check instructions ahead of current in pipe
+                                    instructs.erase(instructs.begin()+j);
+                                }
+                            }
+                            concurrent_pipe(hazard_instructs, true, reg, pc_limit); // execute those blocking instructions only to completion
+                            break; // now that we've found a blocking ins and executed it, stop the loop. Continue with the instructions we have in the original vector  
+                        }
+                    }
+                }
                 new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
             }
@@ -301,7 +323,7 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
                 instructs.erase(instructs.begin()); // take out the instruction just used
             }
         }
-        if(instructs.size() < 5 && pc_limit - global_pc > 0){ // pipe isn't full, add there IS a next instruction to add. so add it
+        if(instructs.size() < 5 && pc_limit - global_pc > 0 && !hazard_mode){ // pipe isn't full, add there IS a next instruction to add. so add it
             new_ins = {"F", "", "", "", "", ""}; 
             instructs.push_back(new_ins);
         }
