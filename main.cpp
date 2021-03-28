@@ -7,11 +7,8 @@
 #include "memory.h"
 using namespace std;
 
-int count = 0; // used to tell whether memory is handling an access
-int stage = 0; // no idea, included in slides
 memory global_mem;
 int global_pc = 0;
-string global_loop = ""; // dedicated register that holds addr of first member of a loop
 string global_cmp = ""; // dedicated register that holds result of a CMP for future instructions
 
 struct to_return{ // used to return from each stage
@@ -75,9 +72,9 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
         mem.write(rn, data); // write the value we got from the register to memory
         global_mem = mem;
         for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
-            cout << "memory stalled, STR write" << endl;
-            Sleep(300); // write stall
         }
+        cout << "memory stalled, STR write" << endl;
+        Sleep(300); // write stall
     }
     if(instruction == "NO_OP"){ // don't do anything, continue to pass blanks
     }
@@ -129,8 +126,8 @@ to_return execute(string instruction, string rn, string rd, string shifter, memo
     if(instruction == "LD" || instruction == "STR"){ // load and store, do nothing. never stalls
     }
 
-    if(instruction == "B"){ // branch - check opcode for cases, check against global_cmp. If any are true, adjust pc back to global_loop. if false, pc moves forward
-        // rn is target addr (global_loop), rd is condition code
+    if(instruction == "B"){ // branch - check opcode for cases, check against global_cmp. If any are true, adjust pc back to target addr. if false, pc moves forward
+        // rn is target addr, rd is condition code
         if(rd == "0101" || rd == "0110" || rd == "0010"){ // greater than/not equal case
             if(global_cmp == "11"){ // if > is true, loop back to 1st member of loop
                 pc = mem.binary_int( stoll(rn) );
@@ -168,10 +165,12 @@ to_return execute(string instruction, string rn, string rd, string shifter, memo
 //0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
 to_return decode(string instruction, memory mem, string reg[], int pc) {
    //deal with condition codes first
-    if(instruction.substr(0, 4) == "0111"){ // LOOP, save the current PC for this instruction in global_loop as 8 bit string as this is the start of a loop
-        global_loop = int_to_binary(pc - 1);
-        cout << "GLOBAL LOOP\n\n\n\n\n\n" << global_loop << endl;
-    }
+   //LOOP CONDITION CODE IS NO LONGER NEEDED
+    /*if(instruction.substr(0, 4) == "0111"){ // LOOP, save the current PC for this instruction in global_xloop as 8 bit string as this is the start of a loop
+        global_xloop_addr++; // we now have 1 more nested loop
+        string loop_pc_to_add = int_to_binary(pc - 1);
+        global_xloop.replace(8*global_xloop_addr, 8*(global_xloop_addr+ 1), loop_pc_to_add); // use offset to either append to global_xloop string or replace old pc not used anymore
+    }*/
     string rn;
     string rd;
     string shift_opt;
@@ -210,7 +209,7 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
         }
         if(op_code == "11000"){ // BRANCH
             cout << "BRANCH IN DECODE" << endl;
-            rn = global_loop; // address we branch to (will ALWAYS BE global_loop, set pc to this) if the condition is true, otherwise just go to pc++ address
+            rn = instruction.substr(12, 20); // target_addr, the address we want to branch to if conditions are true
             rd = instruction.substr(0, 4); // need cond code for execute to determine to branch or not
             instruction = "B";
         }
@@ -237,7 +236,6 @@ to_return fetch(int pc, memory mem, string reg[]) {
         for(int i = 0; i < current_cycles-prev_cycles; i++){
             cout << "NO OP" << endl; // no op
             string no_op = "11110000000000000000000000000000"; // cond code = 1111 for no-op
-           // decode(no_op, mem, reg, pc);
         }
     }
     pc++;
@@ -297,6 +295,8 @@ void single_instruction_pipe_with_cache(vector<vector<string>> instructs, string
                 }
             }
         }
+        string x;
+        cin >> x;
     }
 }
 
@@ -384,6 +384,8 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
             new_ins = {"F", "", "", "", "", ""}; 
             instructs.push_back(new_ins);
         }
+        string x;
+        cin >> x;
     }
 }
 
