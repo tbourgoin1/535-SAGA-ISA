@@ -260,6 +260,54 @@ to_return fetch(int pc, memory mem, string reg[]) {
     return me;
 }
 
+void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string reg[], int pc_limit){
+    to_return ret_val;
+    vector<string> new_ins;
+    while(!instructs.empty()){ // until we run out of instructions
+        int cur_pipe_size = instructs.size();
+        cout << "REGISTER 0: " << reg[0] << endl;
+        cout << "REGISTER 1: " << reg[1] << endl;
+        cout << "REGISTER 2: " << reg[2] << endl;
+        cout << "CURRENT PC: " << global_pc << endl;
+        for(int i = 0; i < cur_pipe_size; i++){ // look at each of the instructions in the pipe
+        cout << "pipe size: " << instructs.size() << endl;
+        cout << instructs[0][0] << instructs[0][1] << instructs[0][2] << instructs[0][3] << instructs[0][4] << instructs[0][5] << endl;
+            if(instructs[0][0] == "F"){ // FETCH CASE
+                ret_val = fetch(global_pc, global_mem, reg); //  execute fetch
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+            }
+            else if(instructs[0][0] == "D"){ // DECODE CASE
+                ret_val = decode(instructs[0][1], global_mem, reg, global_pc); //  execute decode w/ instruction as first arg
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+            }
+            else if(instructs[0][0] == "E"){ // EXECUTE CASE
+                ret_val = execute(instructs[0][1], instructs[0][3], instructs[0][4], instructs[0][5], global_mem, reg, global_pc); //  execute fetch
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+            }
+            else if(instructs[0][0] == "M"){ // MEMORY CASE
+                ret_val = memory_pipe(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][5], global_mem, reg, global_pc); //  execute memory_pipe
+                instructs.erase(instructs.begin()); // take out the instruction just used
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+            }
+            else if(instructs[0][0] == "W"){ // WRITEBACK CASE
+                writeback(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], global_mem, reg, global_pc); //  execute writeback, no need for return val
+                instructs.erase(instructs.begin()); // take out the instruction just used
+            }
+        }
+        if(instructs.size() < 5 && pc_limit - global_pc > 0){ // pipe isn't full, add there IS a next instruction to add. so add it
+            new_ins = {"F", "", "", "", "", ""}; 
+            instructs.push_back(new_ins);
+        }
+    }
+}
+
 int main(int argc, char *argv[]){
     string reg[16]; // registers
 
@@ -387,51 +435,7 @@ int main(int argc, char *argv[]){
     vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
     vector<string> new_ins = {"F", "", "", "", "", ""}; // used throughout to add new instructions
     instructs.push_back(new_ins); // first fetch instruction params now in instructs vector
-    to_return ret_val;
-    while(!instructs.empty()){ // until we run out of instructions
-        int cur_pipe_size = instructs.size();
-        cout << "REGISTER 0: " << reg[0] << endl;
-        cout << "REGISTER 1: " << reg[1] << endl;
-        cout << "REGISTER 2: " << reg[2] << endl;
-        cout << "CURRENT PC: " << global_pc << endl;
-        for(int i = 0; i < cur_pipe_size; i++){ // look at each of the instructions in the pipe
-        cout << "pipe size: " << instructs.size() << endl;
-        cout << instructs[0][0] << instructs[0][1] << instructs[0][2] << instructs[0][3] << instructs[0][4] << instructs[0][5] << endl;
-            if(instructs[0][0] == "F"){ // FETCH CASE
-                ret_val = fetch(global_pc, global_mem, reg); //  execute fetch
-                instructs.erase(instructs.begin()); // take out the instruction just used
-                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
-                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
-            }
-            else if(instructs[0][0] == "D"){ // DECODE CASE
-                ret_val = decode(instructs[0][1], global_mem, reg, global_pc); //  execute decode w/ instruction as first arg
-                instructs.erase(instructs.begin()); // take out the instruction just used
-                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
-                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
-            }
-            else if(instructs[0][0] == "E"){ // EXECUTE CASE
-                ret_val = execute(instructs[0][1], instructs[0][3], instructs[0][4], instructs[0][5], global_mem, reg, global_pc); //  execute fetch
-                instructs.erase(instructs.begin()); // take out the instruction just used
-                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
-                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
-            }
-            else if(instructs[0][0] == "M"){ // MEMORY CASE
-                ret_val = memory_pipe(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][5], global_mem, reg, global_pc); //  execute memory_pipe
-                instructs.erase(instructs.begin()); // take out the instruction just used
-                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
-                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
-            }
-            else if(instructs[0][0] == "W"){ // WRITEBACK CASE
-                writeback(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], global_mem, reg, global_pc); //  execute writeback, no need for return val
-                instructs.erase(instructs.begin()); // take out the instruction just used
-            }
-        }
-        if(instructs.size() < 5 && pc_limit - global_pc > 0){ // pipe isn't full, add there IS a next instruction to add. so add it
-            new_ins = {"F", "", "", "", "", ""}; 
-            instructs.push_back(new_ins);
-        }
-
-    }
+    concurrent_pipe(instructs, false, reg, pc_limit); // execute multithreaded pipeline
 
 
 
