@@ -168,8 +168,9 @@ to_return execute(string instruction, string rn, string rd, string shifter, memo
 //0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
 to_return decode(string instruction, memory mem, string reg[], int pc) {
    //deal with condition codes first
-    if(instruction.substr(0, 4) == "0111"){ // LOOP, save this addr in global_loop as 8 bit string as this is the start of a loop
+    if(instruction.substr(0, 4) == "0111"){ // LOOP, save the current PC for this instruction in global_loop as 8 bit string as this is the start of a loop
         global_loop = int_to_binary(pc - 1);
+        cout << "GLOBAL LOOP\n\n\n\n\n\n" << global_loop << endl;
     }
     string rn;
     string rd;
@@ -419,98 +420,7 @@ int main(int argc, char *argv[]){
         }
      }
 
-   /* // LD TEST
-    cout << "CYCLES: " << global_mem.get_cycles() << endl;
-    global_mem.write("00000000", "01110001111000001000000000000000"); //write 2nd arg to addr in 1st arg. rn address is 00001000 (addr of value we want loaded into register)
-    global_mem.write("00001000", "11111111111111111000111111111111"); // write value we want loaded (2nd arg) to mem addr = rn
-    fetch(global_pc, global_mem, reg);
-    cout << "FINISHED LD EXECUTION. PRINTING RESULTS..." << endl;
-    cout << "reg 0: " << reg[0] << endl;
-    cout << "cache address 00000000: \n" << global_mem.view("00000000", "1") << endl;
-    cout << "NEW PC: " << global_pc << endl;
-    cout << "CYCLES: " << global_mem.get_cycles() << endl;
-    cout << "finish\n\n\n\n" << endl;
-
-    // STR TEST
-    cout << "CYCLES: " << global_mem.get_cycles() << endl;
-    global_mem.write("00000001", "00000010001000000100000100000000"); //write 2nd arg to addr in 1st arg. rn address is 00000100 (addr of memory we want register value in)
-    reg[1] = "11111111111111111111111111111111"; // value we're going to put into the memory address above (00000001)
-    fetch(global_pc, global_mem, reg);
-    cout << "FINISHED STR EXECUTION. PRINTING RESULTS..." << endl;
-    cout << "reg 1, should be all 1's (doesn't change): " << reg[1] << endl;
-    cout << "cache address 00000100, should be all 1's (we stored reg 0's value here): \n" << global_mem.view("00000100", "1") << endl;
-    cout << "NEW PC: " << global_pc << endl;
-    cout << "CYCLES: " << global_mem.get_cycles() << endl;
-    cout << "finish\n\n\n\n" << endl;
-
-    // ADD TEST
-    reg[2] = "00000000000000000000000000000001"; // 1st operand
-    reg[3] = "00000000000000000000000000000001"; // 2nd operand
-    string cond = "0000";
-    string is_branch = "0";
-    string i_bit = "0";
-    string opcode = "00000";
-    string s_bit = "0";
-    string rn = "0010"; // first operand for add, reg[2] above
-    string rd = "0100"; // dest register for add, we want reg[4]
-    string shifter_operand = "001100000000"; // second operand register (reg[3]) + options for shift and constants
-    global_mem.write("00000010", cond + is_branch + i_bit + opcode + s_bit + rn + rd + shifter_operand); // write command to memory
-    fetch(global_pc, global_mem, reg);
-    cout << "FINISHED ADD EXECUTION. PRINTING RESULTS..." << endl;
-    cout << "REG[4], SHOULD BE 00000000000000000000000000000010: \n" + reg[4] << endl;
-    cout << "NEW PC: " << global_pc << endl;
-    cout << "CYCLES: " << global_mem.get_cycles() << endl;
-    cout << "finish\n\n\n\n" << endl;
-
-
-    // CMP AND LOOP JOINT TEST
-    reg[2] = "00000000000000000000000000000001"; // 1st operand, 1
-    reg[3] = "00000000000000000000000000000001"; // 2nd operand, 1
-    cond = "0111"; // should save loop addr
-    is_branch = "0";
-    i_bit = "0";
-    opcode = "01010";
-    s_bit = "0";
-    rn = "0010"; // first operand, reg[2] above
-    rd = "0000"; // dest register, it'll ALWAYS BE GLOBAL_CMP and is set within decode(), so THIS DOESN'T MATTER
-    shifter_operand = "001100000000"; // second operand register (reg[3]) + options for shift and constants
-    global_mem.write("00000011", cond + is_branch + i_bit + opcode + s_bit + rn + rd + shifter_operand); // write command to memory
-    fetch(global_pc, global_mem, reg);
-    cout << "FINISHED CMP EXECUTION. PRINTING RESULTS..." << endl;
-    cout << "RESULT (global_cmp), SHOULD BE 01: " + global_cmp << endl;
-    cout << "GLOBAL LOOP, SHOULD BE BINARY VERSION OF THIS INSTRUCTION'S PC (3): " << global_loop << endl;
-    cout << "NEW PC: " << global_pc << endl;
-    cout << "CYCLES: " << global_mem.get_cycles() << endl;
-    cout << "finish\n\n\n\n" << endl;
-
-*/
-    //BRANCH TEST -> THIS IS OUR DEMO PROGRAM
-    /*string cond = "0011"; // less than cond code
-    string is_branch = "0";
-    string i_bit = "0";
-    string opcode = "11000";
-    string s_bit = "0";
-    string target_address = "00000000000000000000"; // always will be global_loop where we look for this, DOESN'T MATTER
-    global_mem.write("00000000", "0000 0 0 01111 0 00000111 0000 00000000"); // write first LD instruction to mem[0] (LD mem[7] to reg[0])
-    global_mem.write("00000001", "0000 0 0 01111 0 00001000 0001 00000000"); // write second LD instruction to mem[1] (LD mem[8] to reg[1])
-    global_mem.write("00000010", "0000 0 0 01111 0 00001001 0010 00000000");// write third LD instruction to mem[2] (LD mem[9] to reg[2])
-    global_mem.write("00000011", "0111 0 0 00000 0 0000 0000 000100000000"); // write ADD command to mem[3] (ADD reg[0], reg[0], reg[1]). set LOOP cond code.
-    global_mem.write("00000100", "0000 0 0 01010 0 0000 0000 001000000000");// write CMP command to mem[4]. Compare reg[0] to reg[2], which holds 5 in binary. (CMP reg[0], reg[2], store result in global_cmp)
-    global_mem.write("00000101", "0011 0 0 11000 0 00000000000000000000"); // write B to mem[5] (BLT global_loop). set less than cond code. target_addr is always global_loop
-    global_mem.write("00000110", "0000 0 0 10001 0 00001010 0000 00000000") // write STR command to mem[6]. STR reg[0] into mem[10] at the end of the counting loop
-    global_mem.write("00000111", "00000000000000000000000000000000"); // write 0 to mem[7]. we're adding 1 to this value in a loop
-    global_mem.write("00001000", "00000000000000000000000000000001"); // write 1 to mem[8]. This is the "1" we're adding to em[6] every loop
-    global_mem.write("00001001", "00000000000000000000000000000101"); // write 5 to mem[9]. We're CMPing this and mem[7] (reg[0]) to see if reg[0] is less than this
-     // write the value we're adding to to memory -> this should be 5 in binary once done
-     // write the value we're adding to the original to memory (just 1 in binary) - shouldn't change
-     
-     while(1){
-        fetch(global_pc, global_mem, reg);
-        cout << "reg 0. Should have 00000000000000000000000000000101 at the end of execution: " << reg[0] << endl;
-     }*/
-
     //CONCURRENCY CASE
-    // vector always of size 5 that'll hold our current instructions. has ins_type and all possible args for each stage
     vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
     vector<string> new_ins = {"F", "", "", "", "", ""}; // used throughout to add new instructions
     instructs.push_back(new_ins); // first fetch instruction params now in instructs vector
@@ -550,63 +460,6 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < 256; i++){
         cout << global_mem.get_ram()[i] << endl;
     }*/
-
-
-
-
-   /* cout << "FULL CACHE AND RAM PRINT\nCACHE:" << endl;
-    for(int i = 0; i < 16; i++){
-        cout<< global_mem.get_cache()[i] << endl;
-    }
-    cout << "MAIN RAM:" << endl;
-    for(int i = 0; i < 256; i++){
-        cout<< global_mem.get_ram()[i] << endl;
-    }*/
-
-    /*QApplication a(argc, argv);
-    MainWindow w;
-    w.show();
-    return a.exec();*/
-    /**
-    while(1){
-        string command, param1, param2; // command for w, r, or v, 1st parameter for command, 2nd parameter for command, not present with r
-        cin >> command; //read in command and test
-        if(command == "w"){
-            cin >> param1;
-            cin >> param2;
-            mem.write(param1, param2);
-        }
-        else if(command == "r"){
-            cin >> param1;
-            cout << "read returned: \n" << mem.read(param1) << endl;
-        }
-        else if(command == "v"){
-            cin >> param1;
-            cin >> param2;
-            cout << "view returned: \n" << mem.view(param1, param2) << endl;
-        }
-        else if(command == "exit"){
-            cout << "exiting program..." << endl;
-            break;
-        }
-        else if(command == "cache"){
-            for(int i = 0; i < 16; i++){
-                cout<< mem.get_cache()[i] << endl;
-            }
-        }
-        else if(command == "ram"){
-            for(int i = 0; i < 256; i++){
-                cout<< mem.get_ram()[i] << endl;
-            }
-        }
-        else if(command == "cycles"){
-            cout<< mem.get_cycles() << endl;
-        }
-        else{
-            cout << "please enter a valid input!" << endl;
-        }
-    }
-    **/
     return 0;
 }
 
