@@ -505,7 +505,7 @@ int main(int argc, char *argv[]){
     vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
     vector<string> new_ins = {"F", "", "", "", "", ""}; // used throughout to add new instructions
     instructs.push_back(new_ins); // first fetch instruction params now in instructs vector
-    cout << "Please enter which mode you would like to execute the pipeline in:\n00 = no cache, no pipe\n01 = no cache, yes pipe, 10 = yes cache, no pipe, 11 = yes cache, yes pipe" << endl;
+    cout << "Please enter which mode you would like to execute the pipeline in:\n00 = no cache, no pipe\n01 = no cache, yes pipe\n10 = yes cache, no pipe\n11 = yes cache, yes pipe" << endl;
     string run_mode;
     while(1){
         cin >> run_mode;
@@ -518,15 +518,15 @@ int main(int argc, char *argv[]){
             break;
         }
         if(run_mode == "10"){
-            single_instruction_pipe_with_cache(instructs, reg, pc_limit);
+            single_instruction_pipe_with_cache(instructs, reg, pc_limit); // execute single threaded pipeline with cache
             break;
         }
         if(run_mode == "11"){
-            fully_concurrent_pipe(instructs, false, reg, pc_limit); // execute multithreaded pipeline
+            fully_concurrent_pipe(instructs, false, reg, pc_limit); // execute multithreaded pipeline with cache
             break;
         }
         else{
-            cout << "Incorrect input, try again" << endl;
+            cout << "Incorrect input, try again!" << endl;
         }
     }
 
