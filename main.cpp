@@ -3,6 +3,7 @@
 #include <windows.h> //for Sleep
 #include <fstream> // read text file for commands
 #include <vector>
+#include <algorithm>
 #include "memory.h"
 using namespace std;
 
@@ -36,16 +37,6 @@ string int_to_binary(int n) {
     f = f + r;
     return f;
 }
-
-/**
-void pipeline(int pc, memory mem) {
-    fetch(pc, mem);
-    decode();
-    execute();
-    memory_pipe();
-    writeback();
-}
-**/
 
 void writeback(string instruction, string data, string rn, string rd, memory mem, string reg[], int pc) {
     if(instruction == "ADD" || instruction == "LD"){ // these instructions do the same thing - update registers with new data found in last step
@@ -344,6 +335,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
                             for(int j = i; j < instructs.size(); j++){ // remove instructions added to new vector from original
                                 if(instructs[j][0] != "F" && instructs[j][0] != "D"){ // only check instructions ahead of current in pipe
                                     instructs.erase(instructs.begin()+j);
+                                    j = j - 1; // adjust since we deleted a member of the vector
                                 }
                             }
                             concurrent_pipe_with_cache(hazard_instructs, true, reg, pc_limit); // execute those blocking instructions only to completion
@@ -352,13 +344,30 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
                     }
                 }
                 new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
-                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list.
             }
             else if(instructs[0][0] == "E"){ // EXECUTE CASE
-                ret_val = execute(instructs[0][1], instructs[0][3], instructs[0][4], instructs[0][5], global_mem, reg, global_pc); //  execute fetch
+                int old_pc;
+                bool was_branch = false;
+                if(instructs[0][1] == "B"){ // if branch save old PC for later to know for control hazard
+                    old_pc = global_pc;
+                    was_branch = true;
+                }
+                ret_val = execute(instructs[0][1], instructs[0][3], instructs[0][4], instructs[0][5], global_mem, reg, global_pc); //  execute execute
                 instructs.erase(instructs.begin()); // take out the instruction just used
+                if(was_branch){ // it was a branch, check for control hazards
+                    if(old_pc != global_pc){ // check old pc with potentially updated PC. if changed, CONTROL HAZARD!
+                        cout << "CONTROL HAZARD DETECTED! SQUASHING INSTRUCTIONS BEHIND CURRENT BRANCH." << endl;
+                        for(int i = 0; i < instructs.size(); i++){ // iterate through and delete instructions that are coming after branch
+                            if(instructs[i][0] == "F" || instructs[i][0] == "D"){ // only check instructions behind current in pipe (pre-execute)
+                                instructs.erase(instructs.begin()+i); // get rid of those instructions
+                                i = i - 1; // adjust since we deleted a member of the instructs vector
+                            }
+                        }
+                    }
+                }
                 new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter}; // create new instruction with data gotten from fetch 
-                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+                instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. if we had to squash from branch, this will be right after branch
             }
             else if(instructs[0][0] == "M"){ // MEMORY CASE
                 ret_val = memory_pipe(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][5], global_mem, reg, global_pc); //  execute memory_pipe
@@ -483,15 +492,16 @@ int main(int argc, char *argv[]){
     string opcode = "11000";
     string s_bit = "0";
     string target_address = "00000000000000000000"; // always will be global_loop where we look for this, DOESN'T MATTER
-    global_mem.write("00000000", "00000001111000000110000000000000"); // write first LD instruction to mem[0] (LD mem[6] to reg[0])
-    global_mem.write("00000001", "00000001111000000111000100000000"); // write second LD instruction to mem[1] (LD mem[7] to reg[1])
-    global_mem.write("00000010", "00000001111000001000001000000000");// write third LD instruction to mem[2] (LD mem[8] to reg[2])
-    global_mem.write("00000011", "01110000000000000000000100000000"); // write ADD command to mem[3] (ADD reg[0], reg[0], reg[1])
-    global_mem.write("00000100", "00000001010000000000001000000000");// write CMP command to mem[4]. Compare reg[0] to reg[2], which holds 5 in binary. (CMP reg[0], reg[2], store result in global_cmp)
-    global_mem.write("00000101", "00110011000000000000000000000000"); // write B to mem[5] (BLT global_loop)
-    global_mem.write("00000110", "00000000000000000000000000000000"); // write 0 to mem[6]. we're adding 1 to this value in a loop
-    global_mem.write("00000111", "00000000000000000000000000000001"); // write 1 to mem[7]. This is the "1" we're adding to em[6] every loop
-    global_mem.write("00001000", "00000000000000000000000000000101"); // write 5 to mem[8]. We're CMPing this and mem[6] to see if mem[6] is less than this
+    global_mem.write("00000000", "0000 0 0 01111 0 00000111 0000 00000000"); // write first LD instruction to mem[0] (LD mem[7] to reg[0])
+    global_mem.write("00000001", "0000 0 0 01111 0 00001000 0001 00000000"); // write second LD instruction to mem[1] (LD mem[8] to reg[1])
+    global_mem.write("00000010", "0000 0 0 01111 0 00001001 0010 00000000");// write third LD instruction to mem[2] (LD mem[9] to reg[2])
+    global_mem.write("00000011", "0111 0 0 00000 0 0000 0000 000100000000"); // write ADD command to mem[3] (ADD reg[0], reg[0], reg[1]). set LOOP cond code.
+    global_mem.write("00000100", "0000 0 0 01010 0 0000 0000 001000000000");// write CMP command to mem[4]. Compare reg[0] to reg[2], which holds 5 in binary. (CMP reg[0], reg[2], store result in global_cmp)
+    global_mem.write("00000101", "0011 0 0 11000 0 00000000000000000000"); // write B to mem[5] (BLT global_loop). set less than cond code. target_addr is always global_loop
+    global_mem.write("00000110", "0000 0 0 10001 0 00001010 0000 00000000") // write STR command to mem[6]. STR reg[0] into mem[10] at the end of the counting loop
+    global_mem.write("00000111", "00000000000000000000000000000000"); // write 0 to mem[7]. we're adding 1 to this value in a loop
+    global_mem.write("00001000", "00000000000000000000000000000001"); // write 1 to mem[8]. This is the "1" we're adding to em[6] every loop
+    global_mem.write("00001001", "00000000000000000000000000000101"); // write 5 to mem[9]. We're CMPing this and mem[7] (reg[0]) to see if reg[0] is less than this
      // write the value we're adding to to memory -> this should be 5 in binary once done
      // write the value we're adding to the original to memory (just 1 in binary) - shouldn't change
      
@@ -529,6 +539,18 @@ int main(int argc, char *argv[]){
             cout << "Incorrect input, try again!" << endl;
         }
     }
+    
+    cout << "Printing memory location STR wrote to..." << endl;
+    cout << global_mem.view("00001010", "1") << endl;
+    
+    /*cout << "FULL CACHE:" << endl;
+    for(int i = 0; i < 16; i++){
+        cout << global_mem.get_cache()[i] << endl;
+    }
+    cout << "FULL RAM:" << endl;
+    for(int i = 0; i < 256; i++){
+        cout << global_mem.get_ram()[i] << endl;
+    }*/
 
 
 
