@@ -320,7 +320,6 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
             else if(instructs[0][0] == "D"){ // DECODE CASE
                 ret_val = decode(instructs[0][1], global_mem, reg, global_pc); //  execute decode w/ instruction as first arg
                 instructs.erase(instructs.begin()); // take out the instruction just used
-                //BRANCH CASE HERE
                 for(int i = 0; i < instructs.size(); i++){ // check for hazards
                     if(instructs[i][0] != "F" && instructs[i][0] != "D"){ // only check instructions ahead of current in pipe
                         // compare rn, rd, and shifter to see if we're going to use the same ones in the future that the current ins that just decoded uses - HAZARD IF SO
