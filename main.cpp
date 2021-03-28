@@ -308,7 +308,7 @@ void single_instruction_pipe_with_cache(vector<vector<string>> instructs, string
     }
 }
 
-void fully_concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string reg[], int pc_limit){
+void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mode, string reg[], int pc_limit){
     to_return ret_val;
     vector<string> new_ins;
     while(!instructs.empty()){ // until we run out of instructions
@@ -333,7 +333,7 @@ void fully_concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, s
                 for(int i = 0; i < instructs.size(); i++){ // check for hazards
                     if(instructs[i][0] != "F" && instructs[i][0] != "D"){ // only check instructions ahead of current in pipe
                         // compare rn, rd, and shifter to see if we're going to use the same ones in the future that the current ins that just decoded uses - HAZARD IF SO
-                        cout << "HAZARD OCCURRED, EXECUTING BLOCKING INSTRUCTIONS" << endl;
+                        cout << "DATA HAZARD OCCURRED, FINISHING BLOCKING INSTRUCTIONS AHEAD OF CURRENT AND HALTING CURRENT" << endl;
                         if(ret_val.rn == instructs[i][3] || ret_val.rd == instructs[i][4] || ret_val.shifter.substr(0, 4) == instructs[i][5].substr(0, 4)){
                             vector<vector<string>> hazard_instructs;
                             for(int j = i; j < instructs.size(); j++){ // add stalling instruction and all after it to new vector
@@ -346,7 +346,7 @@ void fully_concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, s
                                     instructs.erase(instructs.begin()+j);
                                 }
                             }
-                            fully_concurrent_pipe(hazard_instructs, true, reg, pc_limit); // execute those blocking instructions only to completion
+                            concurrent_pipe_with_cache(hazard_instructs, true, reg, pc_limit); // execute those blocking instructions only to completion
                             break; // now that we've found a blocking ins and executed it, stop the loop. Continue with the instructions we have in the original vector  
                         }
                     }
@@ -522,7 +522,7 @@ int main(int argc, char *argv[]){
             break;
         }
         if(run_mode == "11"){
-            fully_concurrent_pipe(instructs, false, reg, pc_limit); // execute multithreaded pipeline with cache
+            concurrent_pipe_with_cache(instructs, false, reg, pc_limit); // execute multithreaded pipeline with cache
             break;
         }
         else{
