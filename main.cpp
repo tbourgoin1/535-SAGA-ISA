@@ -164,13 +164,6 @@ to_return execute(string instruction, string rn, string rd, string shifter, memo
 //31 30 29 28 27 26 25 24 23 22 21 20 19 18 17 16 15 14 13 12 11 10 9  8  7  6  5  4  3  2  1  0
 //0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
 to_return decode(string instruction, memory mem, string reg[], int pc) {
-   //deal with condition codes first
-   //LOOP CONDITION CODE IS NO LONGER NEEDED
-    /*if(instruction.substr(0, 4) == "0111"){ // LOOP, save the current PC for this instruction in global_xloop as 8 bit string as this is the start of a loop
-        global_xloop_addr++; // we now have 1 more nested loop
-        string loop_pc_to_add = int_to_binary(pc - 1);
-        global_xloop.replace(8*global_xloop_addr, 8*(global_xloop_addr+ 1), loop_pc_to_add); // use offset to either append to global_xloop string or replace old pc not used anymore
-    }*/
     string rn;
     string rd;
     string shift_opt;
@@ -323,9 +316,20 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
                 instructs.erase(instructs.begin()); // take out the instruction just used
                 for(int i = 0; i < instructs.size(); i++){ // check for hazards
                     if(instructs[i][0] != "F" && instructs[i][0] != "D"){ // only check instructions ahead of current in pipe
+                        bool check_rn, check_rd, check_shifter = true; // set to false depending on specific instructions' needs
+                        bool need_to_squash = false; // set to true if we need to squash future instructions in pipeline
+                        if(instructs[i][1] == "LD" || instructs[i][1] == "STR") { check_shifter = false; } // these instructions don't use shifter so we shouldn't check it for data hazard
+                        if(instructs[i][1] == "CMP") { check_rd = false; } // these instructions don't use rd so we shouldn't check it for data hazard
+                        if(instructs[i][1] == "B") { check_rn, check_rd, check_shifter = false; } // these instructions don't need data hazard checks
                         // compare rn, rd, and shifter to see if we're going to use the same ones in the future that the current ins that just decoded uses - HAZARD IF SO
-                        cout << "DATA HAZARD OCCURRED, FINISHING BLOCKING INSTRUCTIONS AHEAD OF CURRENT AND HALTING CURRENT" << endl;
-                        if(ret_val.rn == instructs[i][3] || ret_val.rd == instructs[i][4] || ret_val.shifter.substr(0, 4) == instructs[i][5].substr(0, 4)){
+                        if(check_rn || check_rd || check_shifter){
+                            if(ret_val.rn == instructs[i][3]) {need_to_squash = true;}
+                            if(ret_val.rd == instructs[i][4]) {need_to_squash = true;}
+                            if(ret_val.shifter.substr(0, 4) == instructs[i][5].substr(0, 4)) {need_to_squash = true;}
+                        }
+                        cout << "NEED TO SQUASH: " << need_to_squash << endl;
+                        if(need_to_squash){
+                            cout << "DATA HAZARD OCCURRED, FINISHING BLOCKING INSTRUCTIONS AHEAD OF CURRENT AND HALTING CURRENT" << endl;
                             vector<vector<string>> hazard_instructs;
                             for(int j = i; j < instructs.size(); j++){ // add stalling instruction and all after it to new vector
                                 if(instructs[j][0] != "F" && instructs[j][0] != "D"){ // only check instructions ahead of current in pipe
