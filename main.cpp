@@ -149,7 +149,7 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
 
     if(instruction == "SUB"){
         if(is_cond_code_true){
-            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]
+            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
             string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
             int initial_result = mem.binary_int(stoll(op1)) - mem.binary_int(stoll(op2));
             if(initial_result <= 0){ // MIN OF 0
@@ -367,18 +367,21 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
                 instructs.erase(instructs.begin()); // take out the instruction just used
                 for(int i = 0; i < instructs.size(); i++){ // check for hazards
                     if(instructs[i][0] != "F" && instructs[i][0] != "D"){ // only check instructions ahead of current in pipe
-                        bool check_rn, check_rd, check_shifter = true; // set to false depending on specific instructions' needs
+                        bool check_rn = true, check_rd = true, check_shifter = true; // set to false depending on specific instructions' needs
                         bool need_to_squash = false; // set to true if we need to squash future instructions in pipeline
                         if(instructs[i][1] == "LD" || instructs[i][1] == "STR") { check_shifter = false; } // these instructions don't use shifter so we shouldn't check it for data hazard
                         if(instructs[i][1] == "CMP") { check_rd = false; } // these instructions don't use rd so we shouldn't check it for data hazard
                         if(instructs[i][1] == "B") { check_rn, check_rd, check_shifter = false; } // these instructions don't need data hazard checks
                         // compare rn, rd, and shifter to see if we're going to use the same ones in the future that the current ins that just decoded uses - HAZARD IF SO
-                        if(check_rn || check_rd || check_shifter){
-                            if(ret_val.rn == instructs[i][3]) {need_to_squash = true;}
-                            if(ret_val.rd == instructs[i][4]) {need_to_squash = true;}
-                            if(ret_val.shifter.substr(0, 4) == instructs[i][5].substr(0, 4)) {need_to_squash = true;}
+                        if(check_rn){
+                            if(ret_val.rn == instructs[i][3] || ret_val.rn == instructs[i][4] || ret_val.rn == instructs[i][5].substr(0, 4)) {need_to_squash = true;}
                         }
-                        cout << "NEED TO SQUASH: " << need_to_squash << endl;
+                        if(check_rd){
+                            if(ret_val.rd == instructs[i][3] || ret_val.rd == instructs[i][4] || ret_val.rd == instructs[i][5].substr(0, 4)) {need_to_squash = true;}
+                        }
+                        if(check_shifter){
+                            if(ret_val.shifter.substr(0, 4) == instructs[i][3], ret_val.shifter.substr(0, 4) == instructs[i][4], ret_val.shifter.substr(0, 4) == instructs[i][5].substr(0, 4)) {need_to_squash = true;}
+                        }  
                         if(need_to_squash){
                             cout << "DATA HAZARD OCCURRED, FINISHING BLOCKING INSTRUCTIONS AHEAD OF CURRENT AND HALTING CURRENT" << endl;
                             vector<vector<string>> hazard_instructs;
@@ -505,8 +508,12 @@ int main(int argc, char *argv[]){
         }
     }
     
-    cout << "Printing memory location STR wrote to..." << endl;
-    cout << global_mem.view("00001010", "1") << endl;
+
+    cout << "Register 2 result from SUB: " << reg[2] << endl;
+    
+    //COUNTING LOOP PRINT STUFF
+   /* cout << "Printing memory location STR wrote to..." << endl;
+    cout << global_mem.view("00001010", "1") << endl;*/
     
     /*cout << "FULL CACHE:" << endl;
     for(int i = 0; i < 16; i++){
