@@ -62,7 +62,7 @@ void writeback(string instruction, string data, string rn, string rd, string con
     if(cond_code != "0000"){ // may set to false if it isn't true. Don't execute in this case.
         is_cond_code_true = cond_code_helper(cond_code);
     }
-    if(instruction == "ADD" || instruction == "LD"){ // these instructions do the same thing - update registers with new data found in last step
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "LD"){ // these instructions do the same thing - update registers with new data found in last step
         if(is_cond_code_true){
             reg[mem.binary_int( stoll(rd) )] = data;
         }
@@ -83,7 +83,9 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
     if(cond_code != "0000"){ // may set to false if it isn't true. Don't execute in this case.
         is_cond_code_true = cond_code_helper(cond_code);
     }
-    if(instruction == "ADD" || instruction == "CMP" || instruction == "B"){ // no interaction with memory for ALU ops or branch, just call writeback
+
+    // no interaction with memory for ALU ops or branch
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "CMP" || instruction == "B"){
     }
 
     if(instruction == "LD"){ // read the value from memory we want to store in a register. CAN STALL IF CACHE MISS.
@@ -130,21 +132,33 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
     if(cond_code != "0000"){ // may set to false if it isn't true. Don't execute in this case.
         is_cond_code_true = cond_code_helper(cond_code);
     }
-    if(instruction == "ADD"){
+    if(instruction == "ADD"){ 
         if(is_cond_code_true){
             string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]
             string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
-            int digit_sum = 0;
-            int op1_size = op1.size() - 1;
-            int op2_size = op2.size() - 1;
-            while( op1_size >= 0 || op2_size >= 0 || digit_sum == 1){
-                digit_sum += ((op1_size) ? op1[op1_size] - '0' : 0);
-                digit_sum += ((op2_size) ? op2[op2_size] - '0' : 0);
-                data = char(digit_sum % 2 + '0') + data; 
-                digit_sum /= 2; // carry
-                op1_size--; // move to next op1 char
-                op2_size--; // move to next op2 char
+            int initial_result = mem.binary_int(stoll(op1)) + mem.binary_int(stoll(op2));
+            if(initial_result >= 256){ // MAXIMUM OF 256 BECAUSE INT_TO_BINARY RETURNS 8 BIT RESULT, UNLESS WE CHANGE IT
+                initial_result = 256;
+                cout << "ADD AT MAX VALUE!!!! NEED TO CHANGE INT_TO_BINARY" << endl;
+                Sleep(1000);
             }
+            string eight_bit_result = int_to_binary(initial_result);
+            data = "000000000000000000000000" + eight_bit_result;
+        }
+    }
+
+    if(instruction == "SUB"){
+        if(is_cond_code_true){
+            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]
+            string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
+            int initial_result = mem.binary_int(stoll(op1)) - mem.binary_int(stoll(op2));
+            if(initial_result <= 0){ // MIN OF 0
+                initial_result = 0;
+                cout << "SUB AT MIN VALUE OF 0!!!! STAYING AT 0" << endl;
+                Sleep(1000);
+            }
+            string eight_bit_result = int_to_binary(initial_result);
+            data = "000000000000000000000000" + eight_bit_result;
         }
     }
 
@@ -208,6 +222,13 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
             rd = instruction.substr(16,4); // destination register for result
             shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
             instruction = "ADD";
+        }
+        if(op_code == "00001"){ // SUB
+            cout << "SUB IN DECODE" << endl;
+            rn = instruction.substr(12,4); // register with the first operand
+            rd = instruction.substr(16,4); // destination register for result
+            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+            instruction = "SUB";
         }
         if(op_code == "01010"){ // CMP
             cout << "CMP IN DECODE" << endl;
@@ -456,7 +477,6 @@ int main(int argc, char *argv[]){
         }
      }
 
-    //CONCURRENCY CASE
     vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
     vector<string> new_ins = {"F", "", "", "", "", "", ""}; // used throughout to add new instructions
     instructs.push_back(new_ins); // first fetch instruction params now in instructs vector
