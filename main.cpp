@@ -67,6 +67,13 @@ void writeback(string instruction, string data, string rn, string rd, string con
             reg[mem.binary_int( stoll(rd) )] = data;
         }
     }
+    if(instruction == "DIV"){ // need extra check for divide by 0
+        if(data != "0"){
+            if(is_cond_code_true){
+                reg[mem.binary_int( stoll(rd) )] = data;
+            }
+        }
+    }
     if(instruction == "CMP"){ // no condition on CMP
         global_cmp = rd; // update the global cmp result with rd, calculated in execute
     }
@@ -85,7 +92,7 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
     }
 
     // no interaction with memory for ALU ops or branch. here for refernence, can remove later
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "CMP" || instruction == "B"){
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "DIV" || instruction == "CMP" || instruction == "B"){
     }
 
     if(instruction == "LD"){ // read the value from memory we want to store in a register. CAN STALL IF CACHE MISS.
@@ -177,6 +184,23 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
         }
     }
 
+    if(instruction == "DIV"){
+        if(is_cond_code_true){
+            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
+            string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
+            cout << "OP2: " << op2 << endl;
+            if(op2 != "00000000000000000000000000000000"){
+                int initial_result = mem.binary_int(stoll(op1)) / mem.binary_int(stoll(op2));
+                string eight_bit_result = int_to_binary(initial_result);
+                data = "000000000000000000000000" + eight_bit_result;
+            }
+            else{
+                cout << "DIVIDE BY 0, INVALID! DIV NOT CARRIED OUT, NO RESULT STORED" << endl;
+                data = "0";
+            }
+        }
+    }
+
     if(instruction == "CMP"){ // CMP can't be conditional I don't think, so no checks for cond code 
         if(reg[mem.binary_int( stoll(rn) )] < reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if less than, global_cmp = 00
             rd = "00";
@@ -245,12 +269,19 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
             shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
             instruction = "SUB";
         }
-        if(op_code == "00010"){ // SUB
+        if(op_code == "00010"){ // MUL
             cout << "MUL IN DECODE" << endl;
             rn = instruction.substr(12,4); // register with the first operand
             rd = instruction.substr(16,4); // destination register for result
             shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
             instruction = "MUL";
+        }
+        if(op_code == "00011"){ // DIV
+            cout << "DIV IN DECODE" << endl;
+            rn = instruction.substr(12,4); // register with the first operand
+            rd = instruction.substr(16,4); // destination register for result
+            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+            instruction = "DIV";
         }
         if(op_code == "01010"){ // CMP
             cout << "CMP IN DECODE" << endl;
@@ -531,7 +562,7 @@ int main(int argc, char *argv[]){
     }
     
 
-    cout << "Register 2 result from MUL: " << reg[2] << endl;
+    cout << "Register 2 result from DIV: " << reg[2] << endl;
     
     //COUNTING LOOP PRINT STUFF
    /* cout << "Printing memory location STR wrote to..." << endl;
