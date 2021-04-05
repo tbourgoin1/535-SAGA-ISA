@@ -62,7 +62,7 @@ void writeback(string instruction, string data, string rn, string rd, string con
     if(cond_code != "0000"){ // may set to false if it isn't true. Don't execute in this case.
         is_cond_code_true = cond_code_helper(cond_code);
     }
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "LD"){ // these instructions do the same thing - update registers with new data found in last step
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "LD"){ // these instructions do the same thing - update registers with new data found in last step
         if(is_cond_code_true){
             reg[mem.binary_int( stoll(rd) )] = data;
         }
@@ -84,8 +84,8 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
         is_cond_code_true = cond_code_helper(cond_code);
     }
 
-    // no interaction with memory for ALU ops or branch
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "CMP" || instruction == "B"){
+    // no interaction with memory for ALU ops or branch. here for refernence, can remove later
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "CMP" || instruction == "B"){
     }
 
     if(instruction == "LD"){ // read the value from memory we want to store in a register. CAN STALL IF CACHE MISS.
@@ -162,6 +162,21 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
         }
     }
 
+    if(instruction == "MUL"){
+        if(is_cond_code_true){
+            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
+            string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
+            int initial_result = mem.binary_int(stoll(op1)) * mem.binary_int(stoll(op2));
+            if(initial_result >= 256){ // MAXIMUM OF 256 BECAUSE INT_TO_BINARY RETURNS 8 BIT RESULT, UNLESS WE CHANGE IT
+                initial_result = 256;
+                cout << "MUL AT MAX VALUE!!!! NEED TO CHANGE INT_TO_BINARY" << endl;
+                Sleep(1000);
+            }
+            string eight_bit_result = int_to_binary(initial_result);
+            data = "000000000000000000000000" + eight_bit_result;
+        }
+    }
+
     if(instruction == "CMP"){ // CMP can't be conditional I don't think, so no checks for cond code 
         if(reg[mem.binary_int( stoll(rn) )] < reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if less than, global_cmp = 00
             rd = "00";
@@ -229,6 +244,13 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
             rd = instruction.substr(16,4); // destination register for result
             shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
             instruction = "SUB";
+        }
+        if(op_code == "00010"){ // SUB
+            cout << "MUL IN DECODE" << endl;
+            rn = instruction.substr(12,4); // register with the first operand
+            rd = instruction.substr(16,4); // destination register for result
+            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+            instruction = "MUL";
         }
         if(op_code == "01010"){ // CMP
             cout << "CMP IN DECODE" << endl;
@@ -509,7 +531,7 @@ int main(int argc, char *argv[]){
     }
     
 
-    cout << "Register 2 result from SUB: " << reg[2] << endl;
+    cout << "Register 2 result from MUL: " << reg[2] << endl;
     
     //COUNTING LOOP PRINT STUFF
    /* cout << "Printing memory location STR wrote to..." << endl;
