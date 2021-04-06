@@ -63,7 +63,7 @@ void writeback(string instruction, string data, string rn, string rd, string con
         is_cond_code_true = cond_code_helper(cond_code);
     }
     // these instructions do the same thing - update registers with new data found in last step
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "AND" || instruction == "OR" || instruction == "XOR" || instruction == "NOT" || instruction == "LD"){
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "AND" || instruction == "OR" || instruction == "XOR" || instruction == "NOT" || instruction == "MOV" || instruction == "LD"){
         if(is_cond_code_true){
             reg[mem.binary_int( stoll(rd) )] = data;
         }
@@ -93,7 +93,7 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
     }
 
     // no interaction with memory for ALU ops or branch. here for refernence, can remove later
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "DIV" || instruction == "MOD" || instruction == "AND" || instruction == "NOT" || instruction == "OR" || instruction == "XOR" || instruction == "CMP" || instruction == "B"){
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "DIV" || instruction == "MOD" || instruction == "AND" || instruction == "NOT" || instruction == "OR" || instruction == "XOR" || instruction == "MOV" || instruction == "CMP" || instruction == "B"){
     }
 
     if(instruction == "LD"){ // read the value from memory we want to store in a register. CAN STALL IF CACHE MISS.
@@ -276,6 +276,12 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
         }
     }
 
+    if(instruction == "MOV"){
+        if(is_cond_code_true){
+            data = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets the value we want to move into the reg at rd and sets it to data
+        }
+    }
+
     if(instruction == "CMP"){ // CMP can't be conditional I don't think, so no checks for cond code 
         if(reg[mem.binary_int( stoll(rn) )] < reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if less than, global_cmp = 00
             rd = "00";
@@ -392,6 +398,13 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
             rd = instruction.substr(16,4); // destination register for result
             shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 bits are options for shifts/constants (idk)
             instruction = "XOR";
+        }
+        if(op_code == "01011"){ // XOR
+            cout << "MOV IN DECODE" << endl;
+            rn = instruction.substr(12,4); // UNUSED but data taken so it isn't null
+            rd = instruction.substr(16,4); // destination register for the value being copied over
+            shift_opt = instruction.substr(20,12); // first 4 bits are register of the operand we want to copy FROM, last 8 bits are options for shifts/constants (idk)
+            instruction = "MOV";
         }
         if(op_code == "01010"){ // CMP
             cout << "CMP IN DECODE" << endl;
@@ -534,6 +547,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
                         bool need_to_squash = false; // set to true if we need to squash future instructions in pipeline
                         if(instructs[i][1] == "LD" || instructs[i][1] == "STR" || instructs[i][1] == "NOT") { check_shifter = false; } // these instructions don't use shifter so we shouldn't check it for data hazard
                         if(instructs[i][1] == "CMP") { check_rd = false; } // these instructions don't use rd so we shouldn't check it for data hazard
+                        if(instructs[i][1] == "MOV") { check_rn = false; } // these instructions don't use rn so we shouldn't check it for data hazard
                         if(instructs[i][1] == "B") { check_rn, check_rd, check_shifter = false; } // these instructions don't need data hazard checks
                         // compare rn, rd, and shifter to see if we're going to use the same ones in the future that the current ins that just decoded uses - HAZARD IF SO
                         if(check_rn){
@@ -672,7 +686,7 @@ int main(int argc, char *argv[]){
     }
     
 
-    cout << "Register 2 result from XOR: " << reg[2] << endl;
+    cout << "Register 2 result from MOV: " << reg[2] << endl;
     
     //COUNTING LOOP PRINT STUFF
    /* cout << "Printing memory location STR wrote to..." << endl;
