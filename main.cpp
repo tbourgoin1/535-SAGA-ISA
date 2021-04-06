@@ -62,7 +62,7 @@ void writeback(string instruction, string data, string rn, string rd, string con
     if(cond_code != "0000"){ // may set to false if it isn't true. Don't execute in this case.
         is_cond_code_true = cond_code_helper(cond_code);
     }
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "AND" || instruction == "OR" || instruction == "LD"){ // these instructions do the same thing - update registers with new data found in last step
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "AND" || instruction == "OR" || instruction == "NOT" || instruction == "LD"){ // these instructions do the same thing - update registers with new data found in last step
         if(is_cond_code_true){
             reg[mem.binary_int( stoll(rd) )] = data;
         }
@@ -92,7 +92,7 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
     }
 
     // no interaction with memory for ALU ops or branch. here for refernence, can remove later
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "DIV" || instruction == "MOD" || instruction == "AND" || instruction == "OR" || instruction == "CMP" || instruction == "B"){
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "DIV" || instruction == "MOD" || instruction == "AND" || instruction == "NOT" || instruction == "OR" || instruction == "CMP" || instruction == "B"){
     }
 
     if(instruction == "LD"){ // read the value from memory we want to store in a register. CAN STALL IF CACHE MISS.
@@ -246,6 +246,20 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
         }
     }
 
+    if(instruction == "NOT"){
+        if(is_cond_code_true){
+            string op = reg[mem.binary_int( stoll(rn) )]; // gets operand by converting rn to an index for reg[]);
+            for(int i = 0; i < op.length(); i++){ // look at each character of the string, flip its bits
+                if(op.substr(i, 1) == "1"){ // current char = 1, so append a 0
+                    data.append("0");
+                }
+                else{ // current char was 0, so append a 1
+                    data.append("1");
+                }
+            }
+        }
+    }
+
     if(instruction == "CMP"){ // CMP can't be conditional I don't think, so no checks for cond code 
         if(reg[mem.binary_int( stoll(rn) )] < reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if less than, global_cmp = 00
             rd = "00";
@@ -348,6 +362,13 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
             rd = instruction.substr(16,4); // destination register for result
             shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
             instruction = "OR";
+        }
+        if(op_code == "01000"){ // NOT
+            cout << "NOT IN DECODE" << endl;
+            rn = instruction.substr(12,4); // register with the ONLY operand
+            rd = instruction.substr(16,4); // destination register for result
+            shift_opt = instruction.substr(20,12); // last 8 bits are options for shifts/constants (idk)
+            instruction = "NOT";
         }
         if(op_code == "01010"){ // CMP
             cout << "CMP IN DECODE" << endl;
@@ -488,7 +509,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
                     if(instructs[i][0] != "F" && instructs[i][0] != "D"){ // only check instructions ahead of current in pipe
                         bool check_rn = true, check_rd = true, check_shifter = true; // set to false depending on specific instructions' needs
                         bool need_to_squash = false; // set to true if we need to squash future instructions in pipeline
-                        if(instructs[i][1] == "LD" || instructs[i][1] == "STR") { check_shifter = false; } // these instructions don't use shifter so we shouldn't check it for data hazard
+                        if(instructs[i][1] == "LD" || instructs[i][1] == "STR" || instructs[i][1] == "NOT") { check_shifter = false; } // these instructions don't use shifter so we shouldn't check it for data hazard
                         if(instructs[i][1] == "CMP") { check_rd = false; } // these instructions don't use rd so we shouldn't check it for data hazard
                         if(instructs[i][1] == "B") { check_rn, check_rd, check_shifter = false; } // these instructions don't need data hazard checks
                         // compare rn, rd, and shifter to see if we're going to use the same ones in the future that the current ins that just decoded uses - HAZARD IF SO
@@ -628,7 +649,7 @@ int main(int argc, char *argv[]){
     }
     
 
-    cout << "Register 2 result from AND: " << reg[2] << endl;
+    cout << "Register 2 result from NOT: " << reg[2] << endl;
     
     //COUNTING LOOP PRINT STUFF
    /* cout << "Printing memory location STR wrote to..." << endl;
