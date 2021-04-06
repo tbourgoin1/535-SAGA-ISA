@@ -62,7 +62,7 @@ void writeback(string instruction, string data, string rn, string rd, string con
     if(cond_code != "0000"){ // may set to false if it isn't true. Don't execute in this case.
         is_cond_code_true = cond_code_helper(cond_code);
     }
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "LD"){ // these instructions do the same thing - update registers with new data found in last step
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "AND" || instruction == "LD"){ // these instructions do the same thing - update registers with new data found in last step
         if(is_cond_code_true){
             reg[mem.binary_int( stoll(rd) )] = data;
         }
@@ -92,7 +92,7 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
     }
 
     // no interaction with memory for ALU ops or branch. here for refernence, can remove later
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "DIV" || instruction == "MOD" || instruction == "CMP" || instruction == "B"){
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "DIV" || instruction == "MOD" || instruction == "AND" || instruction == "CMP" || instruction == "B"){
     }
 
     if(instruction == "LD"){ // read the value from memory we want to store in a register. CAN STALL IF CACHE MISS.
@@ -188,7 +188,6 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
         if(is_cond_code_true){
             string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
             string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
-            cout << "OP2: " << op2 << endl;
             if(op2 != "00000000000000000000000000000000"){
                 int initial_result = mem.binary_int(stoll(op1)) / mem.binary_int(stoll(op2));
                 string eight_bit_result = int_to_binary(initial_result);
@@ -205,7 +204,6 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
         if(is_cond_code_true){
             string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
             string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
-            cout << "OP2: " << op2 << endl;
             if(op2 != "00000000000000000000000000000000"){
                 int initial_result = mem.binary_int(stoll(op1)) % mem.binary_int(stoll(op2));
                 string eight_bit_result = int_to_binary(initial_result);
@@ -214,6 +212,21 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
             else{
                 cout << "MOD BY 0, INVALID! MOD NOT CARRIED OUT, NO RESULT STORED" << endl;
                 data = "0";
+            }
+        }
+    }
+
+    if(instruction == "AND"){
+        if(is_cond_code_true){
+            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
+            string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
+            for(int i = 0; i < op1.length(); i++){ // look at each character of the strings, AND them together
+                if(op1.substr(i, 1) == "1" && op2.substr(i, 1) == "1"){ // case where both are 1, AND true. append a 1
+                    data.append("1");
+                }
+                else{ // one or both were 0, append a 0 
+                    data.append("0");
+                }
             }
         }
     }
@@ -306,6 +319,13 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
             rd = instruction.substr(16,4); // destination register for result
             shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
             instruction = "MOD";
+        }
+        if(op_code == "00101"){ // AND
+            cout << "AND IN DECODE" << endl;
+            rn = instruction.substr(12,4); // register with the first operand
+            rd = instruction.substr(16,4); // destination register for result
+            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+            instruction = "AND";
         }
         if(op_code == "01010"){ // CMP
             cout << "CMP IN DECODE" << endl;
@@ -417,7 +437,7 @@ void single_instruction_pipe_with_cache(vector<vector<string>> instructs, string
             }
         }
         string x;
-        cin >> x;
+      //  cin >> x;
     }
 }
 
@@ -586,7 +606,7 @@ int main(int argc, char *argv[]){
     }
     
 
-    cout << "Register 2 result from MOD: " << reg[2] << endl;
+    cout << "Register 2 result from AND: " << reg[2] << endl;
     
     //COUNTING LOOP PRINT STUFF
    /* cout << "Printing memory location STR wrote to..." << endl;
