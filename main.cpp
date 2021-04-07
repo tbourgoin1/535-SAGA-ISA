@@ -63,7 +63,7 @@ void writeback(string instruction, string data, string rn, string rd, string con
         is_cond_code_true = cond_code_helper(cond_code);
     }
     // these instructions do the same thing - update registers with new data found in last step
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "AND" || instruction == "OR" || instruction == "XOR" || instruction == "NOT" || instruction == "MOV" || instruction == "LD" || instruction == "LS"){
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "AND" || instruction == "OR" || instruction == "XOR" || instruction == "NOT" || instruction == "MOV" || instruction == "LD" || instruction == "LS" || instruction == "RS"){
         if(is_cond_code_true){
             reg[mem.binary_int( stoll(rd) )] = data;
         }
@@ -93,7 +93,7 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
     }
 
     // no interaction with memory for ALU ops or branch. here for refernence, can remove later
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "DIV" || instruction == "MOD" || instruction == "AND" || instruction == "NOT" || instruction == "OR" || instruction == "XOR" || instruction == "MOV" || instruction == "CMP" || instruction == "LS" || instruction == "B"){
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "DIV" || instruction == "MOD" || instruction == "AND" || instruction == "NOT" || instruction == "OR" || instruction == "XOR" || instruction == "MOV" || instruction == "CMP" || instruction == "LS" || instruction == "RS" || instruction == "B"){
     }
 
     if(instruction == "LD"){ // read the value from memory we want to store in a register. CAN STALL IF CACHE MISS.
@@ -309,6 +309,15 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
         }
     }
 
+    if(instruction == "RS"){
+        data = reg[mem.binary_int( stoll(rn) )]; // original string
+        int amt_to_shift = mem.binary_int( stoll(shifter.substr(0, 5)) ); // first 5 bits = amt to shift by
+        for(int i = 0; i < amt_to_shift; i++){ // erase "amt_to_shift" number of characters from the END of the string, then append a 0 to the BEGINNING
+            data.erase(31, 1);
+            data.insert(0, "0");
+        }
+    }
+
     if(instruction == "B"){ // branch - check cond code for cases, check against global_cmp. If any are true, adjust pc back to target addr. if false, pc moves forward
         // rn is target addr, rd AND cond_code are condition code (just happened with development, is what it is)
         if(is_cond_code_true){
@@ -428,6 +437,13 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
             rd = instruction.substr(16,4); // destination register for the shifted value
             shift_opt = instruction.substr(20,12); // first 5 bits are the amount we're shifting by (# of places to shift), last 7 bits are unused
             instruction = "LS";
+        }
+        if(op_code == "10000"){ // RS
+            cout << "RS IN DECODE" << endl;
+            rn = instruction.substr(12,4); // register to be shifted
+            rd = instruction.substr(16,4); // destination register for the shifted value
+            shift_opt = instruction.substr(20,12); // first 5 bits are the amount we're shifting by (# of places to shift), last 7 bits are unused
+            instruction = "RS";
         }
         if(op_code == "01111"){ // LOAD
             cout << "LD IN DECODE" << endl;
