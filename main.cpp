@@ -63,7 +63,7 @@ void writeback(string instruction, string data, string rn, string rd, string con
         is_cond_code_true = cond_code_helper(cond_code);
     }
     // these instructions do the same thing - update registers with new data found in last step
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "AND" || instruction == "OR" || instruction == "XOR" || instruction == "NOT" || instruction == "MOV" || instruction == "LD"){
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "AND" || instruction == "OR" || instruction == "XOR" || instruction == "NOT" || instruction == "MOV" || instruction == "LD" || instruction == "LS"){
         if(is_cond_code_true){
             reg[mem.binary_int( stoll(rd) )] = data;
         }
@@ -93,7 +93,7 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
     }
 
     // no interaction with memory for ALU ops or branch. here for refernence, can remove later
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "DIV" || instruction == "MOD" || instruction == "AND" || instruction == "NOT" || instruction == "OR" || instruction == "XOR" || instruction == "MOV" || instruction == "CMP" || instruction == "B"){
+    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "DIV" || instruction == "MOD" || instruction == "AND" || instruction == "NOT" || instruction == "OR" || instruction == "XOR" || instruction == "MOV" || instruction == "CMP" || instruction == "LS" || instruction == "B"){
     }
 
     if(instruction == "LD"){ // read the value from memory we want to store in a register. CAN STALL IF CACHE MISS.
@@ -300,6 +300,15 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
     if(instruction == "LD" || instruction == "STR"){ // load and store, do nothing. never stalls
     }
 
+    if(instruction == "LS"){
+        data = reg[mem.binary_int( stoll(rn) )]; // original string
+        int amt_to_shift = mem.binary_int( stoll(shifter.substr(0, 5)) ); // first 5 bits = amt to shift by
+        for(int i = 0; i < amt_to_shift; i++){ // erase "amt_to_shift" number of characters from the BEGINNING of the string, then append a 0 to the END
+            data.erase(0, 1);
+            data.append("0");
+        }
+    }
+
     if(instruction == "B"){ // branch - check cond code for cases, check against global_cmp. If any are true, adjust pc back to target addr. if false, pc moves forward
         // rn is target addr, rd AND cond_code are condition code (just happened with development, is what it is)
         if(is_cond_code_true){
@@ -399,19 +408,26 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
             shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 bits are options for shifts/constants (idk)
             instruction = "XOR";
         }
-        if(op_code == "01011"){ // XOR
-            cout << "MOV IN DECODE" << endl;
-            rn = instruction.substr(12,4); // UNUSED but data taken so it isn't null
-            rd = instruction.substr(16,4); // destination register for the value being copied over
-            shift_opt = instruction.substr(20,12); // first 4 bits are register of the operand we want to copy FROM, last 8 bits are options for shifts/constants (idk)
-            instruction = "MOV";
-        }
         if(op_code == "01010"){ // CMP
             cout << "CMP IN DECODE" << endl;
             rn = instruction.substr(12,4); // register with first operand
             rd = global_cmp; // destination register, it'll always be global_cmp so we can retain it for next instruction
             shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
             instruction = "CMP";
+        }
+        if(op_code == "01011"){ // MOV
+            cout << "MOV IN DECODE" << endl;
+            rn = instruction.substr(12,4); // UNUSED but data taken so it isn't null
+            rd = instruction.substr(16,4); // destination register for the value being copied over
+            shift_opt = instruction.substr(20,12); // first 4 bits are register of the operand we want to copy FROM, last 8 bits are options for shifts/constants (idk)
+            instruction = "MOV";
+        }
+        if(op_code == "10111"){ // LS
+            cout << "LS IN DECODE" << endl;
+            rn = instruction.substr(12,4); // register to be shifted
+            rd = instruction.substr(16,4); // destination register for the shifted value
+            shift_opt = instruction.substr(20,12); // first 5 bits are the amount we're shifting by (# of places to shift), last 7 bits are unused
+            instruction = "LS";
         }
         if(op_code == "01111"){ // LOAD
             cout << "LD IN DECODE" << endl;
@@ -545,7 +561,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
                     if(instructs[i][0] != "F" && instructs[i][0] != "D"){ // only check instructions ahead of current in pipe
                         bool check_rn = true, check_rd = true, check_shifter = true; // set to false depending on specific instructions' needs
                         bool need_to_squash = false; // set to true if we need to squash future instructions in pipeline
-                        if(instructs[i][1] == "LD" || instructs[i][1] == "STR" || instructs[i][1] == "NOT") { check_shifter = false; } // these instructions don't use shifter so we shouldn't check it for data hazard
+                        if(instructs[i][1] == "LD" || instructs[i][1] == "STR" || instructs[i][1] == "NOT" || instructs[i][1] == "LS" || instructs[i][1] == "RS") { check_shifter = false; } // these instructions don't use shifter so we shouldn't check it for data hazard
                         if(instructs[i][1] == "CMP") { check_rd = false; } // these instructions don't use rd so we shouldn't check it for data hazard
                         if(instructs[i][1] == "MOV") { check_rn = false; } // these instructions don't use rn so we shouldn't check it for data hazard
                         if(instructs[i][1] == "B") { check_rn, check_rd, check_shifter = false; } // these instructions don't need data hazard checks
