@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include "memory.h"
+#include "assembler.h"
 using namespace std;
 
 memory global_mem;
@@ -686,9 +687,15 @@ int main(int argc, char *argv[]){
             string param2 = command.substr(11, 1); // level for view
             cout << "view returned: \n" << global_mem.view(param1, param2) << endl;
         }
-     }
+    }   
 
-     //CALL ASSEMBLER HERE, THEN WRITE INSTRUCTIONS TO MEMORY
+    assembler as;
+    //CHANGE TO VECTOR
+    int res = as.execute_assembler(); // Parse instructions with assembler - receive vector of binary instructions
+
+    //LOOP THROUGH VECTOR, WRITE EACH INSTRUCTION TO MEMORY STARTING AT 00000000. COUNT UP PC_LIMIT PER WRITE
+
+    
 
     vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
     vector<string> new_ins = {"F", "", "", "", "", "", ""}; // used throughout to add new instructions

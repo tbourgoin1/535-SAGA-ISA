@@ -3,10 +3,13 @@
 #include <fstream> // read text file for commands
 #include <sstream>
 #include <vector>
+#include "assembler.h"
 
 using namespace std;
 
-string int_to_binary(int n) {
+int x;
+
+string assembler::int_to_binary_assembler(int n) {
     string r;
     while(n!=0){
         r=(n%2==0 ? "0":"1")+r; 
@@ -21,14 +24,14 @@ string int_to_binary(int n) {
     return f;
 }
 
-string operand_transform(string in){
+string assembler::operand_transform(string in){
 	string out;
 	if(in[in.size()-1] == ',')
 		in = in.substr(0, in.size()-1);
-	if(in[0] == '#' || in[0] == 'r'){
+	if(in[0] == '#' || in[0] == 'r' || in[0] == 'm'){
 		// convert int to binary
 		// 256 ram address so int converted to 8 bits
-		out = int_to_binary(stoll(in.substr(1, in.size()-1)));
+		out = int_to_binary_assembler(stoll(in.substr(1, in.size()-1)));
 	}
 	else if(in[0] == 'b'){
 		// already binary
@@ -38,7 +41,7 @@ string operand_transform(string in){
 }
 
 // tokenize individual instructions to be pushed to instruction list
-vector<string> tokenize_line(string instruction){
+vector<string> assembler::tokenize_line(string instruction){
 	vector<string> inst;
 	istringstream is(instruction);
 	string token;
@@ -48,7 +51,7 @@ vector<string> tokenize_line(string instruction){
 }
 
 // file -> list of instructions, each element is a tokenized instruction
-vector<vector<string>> vectorize_file(string filename){
+vector<vector<string>> assembler::vectorize_file(string filename){
 	vector<vector<string>> inst_list;
 	ifstream file_reader; // reads assembly file
 	string instruction;
@@ -68,7 +71,7 @@ vector<vector<string>> vectorize_file(string filename){
     return inst_list;
 }
 
-vector<string> translate_instructions(vector<vector<string>> inst_list){
+vector<string> assembler::translate_instructions(vector<vector<string>> inst_list){
 	vector<string> binary_inst;
     for(int i = 0; i < inst_list.size(); i++){
     	string cond = "0000";
@@ -127,12 +130,16 @@ vector<string> translate_instructions(vector<vector<string>> inst_list){
     	else if(inst_list[i][0] == "LD"){
     		//needs adjustment
     		opcode = "01111";
-    		cout << "binary LOAD inst: " << endl;
+    		shifter_operand = "00000000";
+    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+    		cout << "binary LOAD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
     	}
     	else if(inst_list[i][0] == "STR"){
     		//needs adjustment
     		opcode = "10001";
-    		cout << "binary LOAD inst: " << endl;
+    		shifter_operand = "00000000";
+    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+    		cout << "binary STORE inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
     	}
     	else if(inst_list[i][0] == "B"){
     		//needs adjustment
@@ -143,7 +150,7 @@ vector<string> translate_instructions(vector<vector<string>> inst_list){
     return binary_inst;
 }
 
-int main() {
+int assembler::execute_assembler() {
 	string file = "instruction.txt";
     translate_instructions(vectorize_file(file));
     return 0;
