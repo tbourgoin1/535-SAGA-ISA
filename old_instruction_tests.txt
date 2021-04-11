@@ -1,0 +1,275 @@
+   /* // LD TEST
+    cout << "CYCLES: " << global_mem.get_cycles() << endl;
+    global_mem.write("00000000", "01110001111000001000000000000000"); //write 2nd arg to addr in 1st arg. rn address is 00001000 (addr of value we want loaded into register)
+    global_mem.write("00001000", "11111111111111111000111111111111"); // write value we want loaded (2nd arg) to mem addr = rn
+    fetch(global_pc, global_mem, reg);
+    cout << "FINISHED LD EXECUTION. PRINTING RESULTS..." << endl;
+    cout << "reg 0: " << reg[0] << endl;
+    cout << "cache address 00000000: \n" << global_mem.view("00000000", "1") << endl;
+    cout << "NEW PC: " << global_pc << endl;
+    cout << "CYCLES: " << global_mem.get_cycles() << endl;
+    cout << "finish\n\n\n\n" << endl;
+
+    // STR TEST
+    cout << "CYCLES: " << global_mem.get_cycles() << endl;
+    global_mem.write("00000001", "00000010001000000100000100000000"); //write 2nd arg to addr in 1st arg. rn address is 00000100 (addr of memory we want register value in)
+    reg[1] = "11111111111111111111111111111111"; // value we're going to put into the memory address above (00000001)
+    fetch(global_pc, global_mem, reg);
+    cout << "FINISHED STR EXECUTION. PRINTING RESULTS..." << endl;
+    cout << "reg 1, should be all 1's (doesn't change): " << reg[1] << endl;
+    cout << "cache address 00000100, should be all 1's (we stored reg 0's value here): \n" << global_mem.view("00000100", "1") << endl;
+    cout << "NEW PC: " << global_pc << endl;
+    cout << "CYCLES: " << global_mem.get_cycles() << endl;
+    cout << "finish\n\n\n\n" << endl;
+
+    // ADD TEST
+    reg[2] = "00000000000000000000000000000001"; // 1st operand
+    reg[3] = "00000000000000000000000000000001"; // 2nd operand
+    string cond = "0000";
+    string is_branch = "0";
+    string i_bit = "0";
+    string opcode = "00000";
+    string s_bit = "0";
+    string rn = "0010"; // first operand for add, reg[2] above
+    string rd = "0100"; // dest register for add, we want reg[4]
+    string shifter_operand = "001100000000"; // second operand register (reg[3]) + options for shift and constants
+    global_mem.write("00000010", cond + is_branch + i_bit + opcode + s_bit + rn + rd + shifter_operand); // write command to memory
+    fetch(global_pc, global_mem, reg);
+    cout << "FINISHED ADD EXECUTION. PRINTING RESULTS..." << endl;
+    cout << "REG[4], SHOULD BE 00000000000000000000000000000010: \n" + reg[4] << endl;
+    cout << "NEW PC: " << global_pc << endl;
+    cout << "CYCLES: " << global_mem.get_cycles() << endl;
+    cout << "finish\n\n\n\n" << endl;
+
+
+    // CMP AND LOOP JOINT TEST
+    reg[2] = "00000000000000000000000000000001"; // 1st operand, 1
+    reg[3] = "00000000000000000000000000000001"; // 2nd operand, 1
+    cond = "0111"; // should save loop addr
+    is_branch = "0";
+    i_bit = "0";
+    opcode = "01010";
+    s_bit = "0";
+    rn = "0010"; // first operand, reg[2] above
+    rd = "0000"; // dest register, it'll ALWAYS BE GLOBAL_CMP and is set within decode(), so THIS DOESN'T MATTER
+    shifter_operand = "001100000000"; // second operand register (reg[3]) + options for shift and constants
+    global_mem.write("00000011", cond + is_branch + i_bit + opcode + s_bit + rn + rd + shifter_operand); // write command to memory
+    fetch(global_pc, global_mem, reg);
+    cout << "FINISHED CMP EXECUTION. PRINTING RESULTS..." << endl;
+    cout << "RESULT (global_cmp), SHOULD BE 01: " + global_cmp << endl;
+    cout << "GLOBAL LOOP, SHOULD BE BINARY VERSION OF THIS INSTRUCTION'S PC (3): " << global_loop << endl;
+    cout << "NEW PC: " << global_pc << endl;
+    cout << "CYCLES: " << global_mem.get_cycles() << endl;
+    cout << "finish\n\n\n\n" << endl;
+
+*/
+    //BRANCH TEST -> THIS IS THE COUNTING LOOP
+
+    CODE FORMAT
+    /*string cond = "0011"; // less than cond code
+    string is_branch = "0";
+    string i_bit = "0";
+    string opcode = "11000";
+    string s_bit = "0";
+    string target_address = "00000000000000000000"; // always will be global_loop where we look for this, DOESN'T MATTER
+    global_mem.write("00000000", "0000 0 0 01111 0 00000111 0000 00000000"); // write first LD instruction to mem[0] (LD mem[7] to reg[0])
+    global_mem.write("00000001", "0000 0 0 01111 0 00001000 0001 00000000"); // write second LD instruction to mem[1] (LD mem[8] to reg[1])
+    global_mem.write("00000010", "0000 0 0 01111 0 00001001 0010 00000000");// write third LD instruction to mem[2] (LD mem[9] to reg[2])
+    global_mem.write("00000011", "0000 0 0 00000 0 0000 0000 000100000000"); // write ADD command to mem[3] (ADD reg[0], reg[0], reg[1]).
+    global_mem.write("00000100", "0000 0 0 01010 0 0000 0000 001000000000");// write CMP command to mem[4]. Compare reg[0] to reg[2], which holds 5 in binary. (CMP reg[0], reg[2], store result in global_cmp)
+    global_mem.write("00000101", "0011 0 0 11000 0 00000000000000000011"); // write B to mem[5] (BLT target_address). The target addr is the first ins of loop. set less than cond code. target_addr is always global_loop
+    global_mem.write("00000110", "0000 0 0 10001 0 00001010 0000 00000000") // write STR command to mem[6]. STR reg[0] into mem[10] at the end of the counting loop
+    global_mem.write("00000111", "00000000000000000000000000000000"); // write 0 to mem[7]. we're adding 1 to this value in a loop
+    global_mem.write("00001000", "00000000000000000000000000000001"); // write 1 to mem[8]. This is the "1" we're adding to em[6] every loop
+    global_mem.write("00001001", "00000000000000000000000000000101"); // write 5 to mem[9]. We're CMPing this and mem[7] (reg[0]) to see if reg[0] is less than this*/
+
+    FROM FILE FORMAT
+    w 00000000 00000001111000000111000000000000 p
+    w 00000001 00000001111000001000000100000000 p
+    w 00000010 00000001111000001001001000000000 p
+    w 00000011 00000000000000000000000100000000 p
+    w 00000100 00000001010000000000001000000000 p
+    w 00000101 00110011000000000000000000000011 p
+    w 00000110 00000010001000001010000000000000 p
+    w 00000111 00000000000000000000000000000000 n
+    w 00001000 00000000000000000000000000000001 n
+    w 00001001 00000000000000000000000000000101 n
+
+
+    // SUB TEST - END RESULT SHOULD BE 00000000000000000000000000000001 IN REG[2]
+    w 00000000 0000 0 0 01111 0 00000011 0000 00000000 p // LD mem[3] to reg[0] (first operand)
+    w 00000001 0000 0 0 01111 0 00000100 0001 00000000 p // LD mem[4] to reg[1] (second operand)
+    w 00000010 0000 0 0 00001 0 0000 0010 000100000000 p // SUB reg[0] - reg[1] and store it in reg[2]
+    w 00000011 00000000000000000000000000000101 n // write 5 to mem[3]
+    w 00000100 00000000000000000000000000000100 n // write 4 to mem[4]
+
+    GOOD FORMAT FOR FILE
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000000001000000010000100000000 p
+    w 00000011 00000000000000000000000000000101 n
+    w 00000100 00000000000000000000000000000100 n
+
+
+    // MUL TEST - END RESULT SHOULD BE 00000000000000000000000000010100 IN REG[2]
+    w 00000000 0000 0 0 01111 0 00000011 0000 00000000 p // LD mem[3] to reg[0] (first operand)
+    w 00000001 0000 0 0 01111 0 00000100 0001 00000000 p // LD mem[4] to reg[1] (second operand)
+    w 00000010 0000 0 0 00010 0 0000 0010 000100000000 p // MUL reg[0] * reg[1] and store it in reg[2]
+    w 00000011 00000000000000000000000000000101 n // write 5 to mem[3]
+    w 00000100 00000000000000000000000000000100 n // write 4 to mem[4]
+
+    GOOD FORMAT FOR FILE
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000000010000000010000100000000 p
+    w 00000011 00000000000000000000000000000101 n
+    w 00000100 00000000000000000000000000000100 n
+
+
+    // DIV TEST - END RESULT SHOULD BE 00000000000000000000000000000010 IN REG[2]
+    w 00000000 0000 0 0 01111 0 00000011 0000 00000000 p // LD mem[3] to reg[0] (first operand)
+    w 00000001 0000 0 0 01111 0 00000100 0001 00000000 p // LD mem[4] to reg[1] (second operand)
+    w 00000010 0000 0 0 00011 0 0000 0010 000100000000 p // DIV reg[0] / reg[1] and store it in reg[2]
+    w 00000011 00000000000000000000000000000110 n // write 6 to mem[3]
+    w 00000100 00000000000000000000000000000011 n // write 3 to mem[4]
+
+    GOOD FORMAT FOR FILE
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000000011000000010000100000000 p
+    w 00000011 00000000000000000000000000000110 n
+    w 00000100 00000000000000000000000000000011 n
+
+    DIVIDE BY 0 TEST
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000000011000000010000100000000 p
+    w 00000011 00000000000000000000000000000110 n
+    w 00000100 00000000000000000000000000000000 n
+
+
+    // MOD TEST - END RESULT SHOULD BE 00000000000000000000000000000001 IN REG[2]
+    w 00000000 0000 0 0 01111 0 00000011 0000 00000000 p // LD mem[3] to reg[0] (first operand)
+    w 00000001 0000 0 0 01111 0 00000100 0001 00000000 p // LD mem[4] to reg[1] (second operand)
+    w 00000010 0000 0 0 00100 0 0000 0010 000100000000 p // MOD reg[0] % reg[1] and store it in reg[2]
+    w 00000011 00000000000000000000000000000101 n // write 5 to mem[3]
+    w 00000100 00000000000000000000000000000100 n // write 4 to mem[4]
+
+    GOOD FORMAT FOR FILE
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000000100000000010000100000000 p
+    w 00000011 00000000000000000000000000000101 n
+    w 00000100 00000000000000000000000000000100 n
+
+
+    MOD BY 0 TEST
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000000100000000010000100000000 p
+    w 00000011 00000000000000000000000000000101 n
+    w 00000100 00000000000000000000000000000000 n
+
+
+    // AND TEST - END RESULT SHOULD BE 00000000000000000000010100000100 IN REG[2]
+    w 00000000 0000 0 0 01111 0 00000011 0000 00000000 p // LD mem[3] to reg[0] (first operand)
+    w 00000001 0000 0 0 01111 0 00000100 0001 00000000 p // LD mem[4] to reg[1] (second operand)
+    w 00000010 0000 0 0 00101 0 0000 0010 000100000000 p // AND reg[0] && reg[1] and store it in reg[2]
+    w 00000011 00000000000000000000010100000101 n // write to mem[3]
+    w 00000100 00000000000000000000111100000100 n // write to mem[4]
+
+    GOOD FORMAT FOR FILE
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000000101000000010000100000000 p
+    w 00000011 00000000000000000000010100000101 n
+    w 00000100 00000000000000000000111100000100 n
+
+
+    // OR TEST - END RESULT SHOULD BE 00000000000000000000111100000101 IN REG[2]
+    w 00000000 0000 0 0 01111 0 00000011 0000 00000000 p // LD mem[3] to reg[0] (first operand)
+    w 00000001 0000 0 0 01111 0 00000100 0001 00000000 p // LD mem[4] to reg[1] (second operand)
+    w 00000010 0000 0 0 00111 0 0000 0010 000100000000 p // OR reg[0] || reg[1] and store it in reg[2]
+    w 00000011 00000000000000000000010100000101 n // write to mem[3]
+    w 00000100 00000000000000000000111100000100 n // write to mem[4]
+
+    GOOD FORMAT FOR FILE
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000000111000000010000100000000 p
+    w 00000011 00000000000000000000010100000101 n
+    w 00000100 00000000000000000000111100000100 n
+
+
+    // NOT TEST - END RESULT SHOULD BE 11111111000010111111101011111010 IN REG[2]
+    w 00000000 0000 0 0 01111 0 00000011 0000 00000000 p // LD mem[3] to reg[0] (first operand)
+    w 00000001 0000 0 0 01111 0 00000100 0001 00000000 p // LD mem[4] to reg[1] (second operand, NOT USED)
+    w 00000010 0000 0 0 01000 0 0000 0010 000000000000 p // NOT reg[0] and store it in reg[2]
+    w 00000011 00000000111101000000010100000101 n // write to mem[3]
+    w 00000100 00000000000000000000111100000100 n // write to mem[4], NOT USED
+
+    GOOD FORMAT FOR FILE
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000001000000000010000000000000 p
+    w 00000011 00000000111101000000010100000101 n
+    w 00000100 00000000000000000000111100000100 n
+
+
+    // XOR TEST - END RESULT SHOULD BE 00000000000000000000101000000001 IN REG[2]
+    w 00000000 0000 0 0 01111 0 00000011 0000 00000000 p // LD mem[3] to reg[0] (first operand)
+    w 00000001 0000 0 0 01111 0 00000100 0001 00000000 p // LD mem[4] to reg[1] (second operand)
+    w 00000010 0000 0 0 01001 0 0000 0010 000100000000 p // XOR reg[0] x|| reg[1] and store it in reg[2]
+    w 00000011 00000000000000000000010100000101 n // write to mem[3]
+    w 00000100 00000000000000000000111100000100 n // write to mem[4]
+
+    GOOD FORMAT FOR FILE
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000001001000000010000100000000 p
+    w 00000011 00000000000000000000010100000101 n
+    w 00000100 00000000000000000000111100000100 n
+
+
+    // MOV TEST - END RESULT SHOULD BE 00000000000000000000010100000101 IN REG[2]
+    w 00000000 0000 0 0 01111 0 00000011 0000 00000000 p // LD mem[3] to reg[0] (first operand)
+    w 00000001 0000 0 0 01111 0 00000100 0001 00000000 p // LD mem[4] to reg[1] (NOT USED)
+    w 00000010 0000 0 0 01011 0 0000 0010 000000000000 p // MOV reg[0] into reg[2]
+    w 00000011 00000000000000000000010100000101 n // write to mem[3]
+    w 00000100 00000000000000000000111100000100 n // write to mem[4], NOT USED
+
+    GOOD FORMAT FOR FILE
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000001011000000010000000000000 p
+    w 00000011 00000000000000000000010100000101 n
+    w 00000100 00000000000000000000111100000100 n  
+
+
+    // LS TEST - END RESULT SHOULD BE 00000000000000000000000000110000 IN REG[2]
+    w 00000000 0000 0 0 01111 0 00000011 0000 00000000 p // LD mem[3] to reg[0] (first operand)
+    w 00000001 0000 0 0 01111 0 00000100 0001 00000000 p // LD mem[4] to reg[1] (second operand, UNUSED)
+    w 00000010 0000 0 0 10111 0 0000 0010 000110000000 p // LS reg[0] 3 spaces and store it in reg[2]
+    w 00000011 11100000000000000000000000000110 n // write to mem[3]
+    w 00000100 00000000000000000000000000000011 n // write to mem[4], UNUSED
+
+    GOOD FORMAT FOR FILE
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000010111000000010000110000000 p
+    w 00000011 11100000000000000000000000000110 n
+    w 00000100 00000000000000000000000000000011 n
+
+    // RS TEST - END RESULT SHOULD BE 00011100000000000000000000011000 IN REG[2]
+    w 00000000 0000 0 0 01111 0 00000011 0000 00000000 p // LD mem[3] to reg[0] (first operand)
+    w 00000001 0000 0 0 01111 0 00000100 0001 00000000 p // LD mem[4] to reg[1] (second operand, UNUSED)
+    w 00000010 0000 0 0 10000 0 0000 0010 000110000000 p // RS reg[0] 3 spaces and store it in reg[2]
+    w 00000011 11100000000000000000000011000110 n // write to mem[3]
+    w 00000100 00000000000000000000000000000011 n // write to mem[4], UNUSED
+
+    GOOD FORMAT FOR FILE
+    w 00000000 00000001111000000011000000000000 p
+    w 00000001 00000001111000000100000100000000 p
+    w 00000010 00000010000000000010000110000000 p
+    w 00000011 11100000000000000000000011000110 n
+    w 00000100 00000000000000000000000000000011 n

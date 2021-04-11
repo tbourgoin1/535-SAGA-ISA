@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include <windows.h> //for Sleep
 #include <cmath>
 #include "memory.h"
 using namespace std;
@@ -78,13 +77,6 @@ int memory::write(string addr, string data){ //respond with "wait" or "done", wr
             this->ram[ram_address+1] = this->cache[address].substr(42, 32); // data2
             this->ram[ram_address+2] = this->cache[address].substr(74, 32); // data3
             this->ram[ram_address+3] = this->cache[address].substr(106, 32); // data4
-            for(int i = 0; i < 4; i++){ // simulate 4 memory accesses
-                for (int j = 0; j < 2; j++){
-                    cout << "wait" << endl;
-                    Sleep(300);
-                }
-                cout<< "done" << endl;
-            }
             this->cycles = this->cycles + 12; // (4 * 3) = 12 cycles for 4 memory accesses
         }
         this->cache[address] = memory::cache_write(tag, index, offset, dirty, valid, data, address);
@@ -157,12 +149,11 @@ string memory::read(string addr){ //respond with "wait" or "done" and return sto
 
     if(valid == "0") {
         int ram_address = memory::binary_int( stoll( tag + index + "00" ) );
-        string new_write = tag + index + offset + dirty + valid + this->ram[ram_address] + this->ram[ram_address+1] + this->ram[ram_address+2] + this->ram[ram_address+3];
+        string new_write = tag + index + offset + dirty + "1" + this->ram[ram_address] + this->ram[ram_address+1] + this->ram[ram_address+2] + this->ram[ram_address+3];
         this->cache[cache_address] = new_write;
     }
 
     string line = this->cache[cache_address]; // the line of cache we want to initially look at (matches index)
-    cout << "done" << endl; // 1 cycle cache access
     this->cycles++;
     if(tag == line.substr(0, 2)){ // found the index in the cache, now make sure the tags equal. if so, CACHE HIT
         if(offset == "00") //if offset is 00, get first piece of data (word) in line
@@ -183,20 +174,13 @@ string memory::read(string addr){ //respond with "wait" or "done" and return sto
         int ram_address = memory::binary_int( stoll( tag + index + offset ) );
         string dirty = "0";
         string valid = "1";
-        for(int i = 0; i < 2; i++){
-            for (int j = 0; j < 2; j++){
-                cout << "wait" << endl;
-                Sleep(300);
-            }
-            cout<< "done" << endl;
-            }
-            string old_tag = this->cache[cache_address].substr(0, 2);
-            int old_ram_address = memory::binary_int(stoll(old_tag + index + "00"));
-            for(int i = 0; i < 4; i++){ // write back to ram
-                this->ram[old_ram_address + i] = this->cache[cache_address].substr(10 + (32 * i), 32);
-            }
-            this->cache[cache_address] = memory::cache_write(tag, index, offset, dirty, valid, this->ram[ram_address], cache_address);
-            this->cycles = this->cycles + 7;
+        string old_tag = this->cache[cache_address].substr(0, 2);
+        int old_ram_address = memory::binary_int(stoll(old_tag + index + "00"));
+        for(int i = 0; i < 4; i++){ // write back to ram
+            this->ram[old_ram_address + i] = this->cache[cache_address].substr(10 + (32 * i), 32);
+        }
+        this->cache[cache_address] = memory::cache_write(tag, index, offset, dirty, valid, this->ram[ram_address], cache_address);
+        this->cycles = this->cycles + 13;
 
         cout << "cycle count: " << this->cycles << endl; // after every read print the # of cycles
         return this->ram[ram_address]; // return data we just pulled from ram
