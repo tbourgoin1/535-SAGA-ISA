@@ -83,7 +83,7 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
 	    string rd;
 	    string shifter_operand;
 
-        operation = inst_list[i][0];
+        string operation = inst_list[i][0];
         string scan;
         if(operation.size() > 3){
             scan = operation.substr(operation.size()-3, 3);
@@ -117,61 +117,87 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
 	    if(inst_length == 4) // has shifter_operand
     		shifter_operand = operand_transform(inst_list[i][3]);
 	    if(inst_length > 2) // has second operand
-    		rn = operand_transform(inst_list[i][2]);
+            if(operation == "MOV")
+                shifter_operand = operand_transform(inst_list[i][2]);
+            else
+                rn = operand_transform(inst_list[i][2]);
 
-    	if(inst_list[i][0] == "ADD"){
-    		opcode = "00000";
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
-    		cout << "binary ADD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-    		binary_inst.push_back(b);
-    	}
-    	else if(inst_list[i][0] == "SUB"){
-    		opcode = "00001";
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
-    		cout << "binary SUB inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-    		binary_inst.push_back(b);
-    	}
-    	else if(inst_list[i][0] == "MUL"){
-    		opcode = "00010";
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
-    		cout << "binary MUL inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-    		binary_inst.push_back(b);
-    	}
-    	else if(inst_list[i][0] == "DIV"){
-    		opcode = "00011";
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
-    		cout << "binary DIV inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-    		binary_inst.push_back(b);
-    	}
-    	else if(inst_list[i][0] == "MOD"){
-    		opcode = "00100";
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
-    		cout << "binary MOD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-    		binary_inst.push_back(b);
-    	}
-    	else if(inst_list[i][0] == "CMP"){
-    		opcode = "01010";
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
-    		cout << "binary CMP inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-    		binary_inst.push_back(b);
-    	}
-    	else if(inst_list[i][0] == "LD"){
-    		//needs adjustment
-    		opcode = "01111";
-    		shifter_operand = "00000000";
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
-    		cout << "binary LOAD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-    	    binary_inst.push_back(b);
+        if(operation == "ADD" || operation == "SUB" || operation == "MUL" || operation == "DIV" || operation == "MOD" || operation == "CMP" || operation == "AND" ||
+            operation == "NOT" || operation == "XOR" || operation == "OR" || operation == "LS" || operation == "RS"){
+
+        	if(operation == "ADD"){
+        		opcode = "00000";
+        		cout << "binary ADD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+        	}
+        	else if(operation == "SUB"){
+        		opcode = "00001";
+        		cout << "binary SUB inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+        	}
+        	else if(operation == "MUL"){
+        		opcode = "00010";
+        		cout << "binary MUL inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+        	}
+        	else if(operation == "DIV"){
+        		opcode = "00011";
+        		cout << "binary DIV inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+        	}
+        	else if(operation == "MOD"){
+        		opcode = "00100";
+        		cout << "binary MOD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+        	}
+        	else if(operation == "CMP"){
+        		opcode = "01010";
+        		cout << "binary CMP inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+        	}
+            else if(operation == "AND"){
+                opcode = "00101";
+                cout << "binary AND inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+            }
+            else if(operation == "NOT"){
+                opcode = "01000";
+                cout << "binary NOT inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+            }
+            else if(operation == "XOR"){
+                opcode = "01001";
+                cout << "binary XOR inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+            }
+            else if(operation == "OR"){
+                opcode = "00111";
+                cout << "binary OR inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+            }
+            else if(operation == "LS"){
+                opcode = "10111";
+                cout << "binary LS inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+            }
+            else if(operation == "RS"){
+                opcode = "10000";
+                cout << "binary RS inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+            }
+
+            string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+            binary_inst.push_back(b);
         }
-    	else if(inst_list[i][0] == "STR"){
-    		//needs adjustment
-    		opcode = "10001";
-    		shifter_operand = "00000000";
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
-    		cout << "binary STORE inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-    	    binary_inst.push_back(b);
+        else if(operation == "LD" || operation == "STR"){
+            shifter_operand = "00000000";
+            if(operation == "LD"){
+        		opcode = "01111";
+        		cout << "binary LOAD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+            }
+        	else if(operation == "STR"){
+        		opcode = "10001";
+        		cout << "binary STORE inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+            }
+            string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+            binary_inst.push_back(b);
         }
-    	else if(inst_list[i][0] == "B"){
+        else if(operation == "MOV"){
+            rn = "0000";
+            opcode = "01011";
+            string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+            cout << "binary MOV inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+            binary_inst.push_back(b);
+        }
+    	else if(operation == "B"){
     		//needs adjustment
     		opcode = "11000";
             rn = "00000000";
@@ -180,18 +206,11 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
             cout << "binary BRANCH inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
             binary_inst.push_back(b);
     	}
-		else if(inst_list[i][0] == "AND"){
-    		opcode = "00101";
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
-    		cout << "binary AND inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-    		binary_inst.push_back(b);
-    	}
     }
     return binary_inst;
 }
 
 vector<string> assembler::execute_assembler() {
 	string file = "instruction.txt";
-    //cout << file.substr(file.size()-2, 2) << endl;
     return translate_instructions(vectorize_file(file));
 }
