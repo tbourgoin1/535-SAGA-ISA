@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include "memory.h"
+#include "assembler.h"
 using namespace std;
 
 memory global_mem;
@@ -689,7 +690,10 @@ int main(int argc, char *argv[]){
         if(command.substr(44, 1) == "p"){ // additional input from the file telling us it's a pipeline instruction - so we know when to stop creating threads
             pc_limit++;
         }
-     }
+    }
+
+    assembler as;
+    int res = as.main();
 
     vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
     vector<string> new_ins = {"F", "", "", "", "", "", ""}; // used throughout to add new instructions

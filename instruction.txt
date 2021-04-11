@@ -1,0 +1,5 @@
+ADD r1, r2, r3
+SUB r3, r1, r2
+STR r3, m8
+LD r4, m8
+B #9

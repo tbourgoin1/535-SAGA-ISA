@@ -3,6 +3,7 @@
 #include <fstream> // read text file for commands
 #include <sstream>
 #include <vector>
+#include "assembler.h"
 
 using namespace std;
 
