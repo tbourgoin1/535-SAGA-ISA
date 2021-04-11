@@ -6,7 +6,6 @@
 
 using namespace std;
 
-/**
 string int_to_binary(int n) {
     string r;
     while(n!=0){
@@ -21,25 +20,21 @@ string int_to_binary(int n) {
     f = f + r;
     return f;
 }
-**/
+
 string operand_transform(string in){
-	/**
 	string out;
-	if(in[0] == '#'){
+	if(in[in.size()-1] == ',')
+		in = in.substr(0, in.size()-1);
+	if(in[0] == '#' || in[0] == 'r'){
 		// convert int to binary
+		// 256 ram address so int converted to 8 bits
+		out = int_to_binary(stoll(in.substr(1, in.size()-1)));
 	}
 	else if(in[0] == 'b'){
 		// already binary
-		if(in[in.size()-1] == ',')
-			out = in.substr(1, in.size()-2);
-		else
-			out = in.substr(1, in.size()-1);
+		out = in.substr(1, in.size()-1);
 	}
-	else if(in[0] == 'r'){
-		// handle register
-	}
-	**/
-	return in;
+	return out;
 }
 
 // tokenize individual instructions to be pushed to instruction list
@@ -84,58 +79,49 @@ vector<string> translate_instructions(vector<vector<string>> inst_list){
 	    string rn;
 	    string rd;
 	    string shifter_operand;
+
+	    int inst_length = inst_list[i].size();
+	    rd = operand_transform(inst_list[i][1]);
+
+	    if(inst_length == 4) // has shifter_operand
+    		shifter_operand = operand_transform(inst_list[i][3]);
+	    if(inst_length > 2) // has second operand
+    		rn = operand_transform(inst_list[i][2]);
+
     	if(inst_list[i][0] == "ADD"){
     		opcode = "00000";
-    		rd = inst_list[i][1];
-    		rn = inst_list[i][2];
-    		shifter_operand = inst_list[i][3];
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + operand_transform(rn) + operand_transform(rd) + operand_transform(shifter_operand);
-    		cout << "binary ADD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + operand_transform(rn) + " "  + operand_transform(rd) + " "  + operand_transform(shifter_operand) << endl;
+    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+    		cout << "binary ADD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
     		binary_inst.push_back(b);
     	}
     	else if(inst_list[i][0] == "SUB"){
     		opcode = "00001";
-    		rd = inst_list[i][1];
-    		rn = inst_list[i][2];
-    		shifter_operand = inst_list[i][3];
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + operand_transform(rn) + operand_transform(rd) + operand_transform(shifter_operand);
-    		cout << "binary SUB inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + operand_transform(rn) + " "  + operand_transform(rd) + " "  + operand_transform(shifter_operand) << endl;
+    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+    		cout << "binary SUB inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
     		binary_inst.push_back(b);
     	}
     	else if(inst_list[i][0] == "MUL"){
     		opcode = "00010";
-    		rd = inst_list[i][1];
-    		rn = inst_list[i][2];
-    		shifter_operand = inst_list[i][3];
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + operand_transform(rn) + operand_transform(rd) + operand_transform(shifter_operand);
-    		cout << "binary MUL inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + operand_transform(rn) + " "  + operand_transform(rd) + " "  + operand_transform(shifter_operand) << endl;
+    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+    		cout << "binary MUL inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
     		binary_inst.push_back(b);
     	}
     	else if(inst_list[i][0] == "DIV"){
     		opcode = "00011";
-    		rd = inst_list[i][1];
-    		rn = inst_list[i][2];
-    		shifter_operand = inst_list[i][3];
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + operand_transform(rn) + operand_transform(rd) + operand_transform(shifter_operand);
-    		cout << "binary DIV inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + operand_transform(rn) + " "  + operand_transform(rd) + " "  + operand_transform(shifter_operand) << endl;
+    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+    		cout << "binary DIV inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
     		binary_inst.push_back(b);
     	}
     	else if(inst_list[i][0] == "MOD"){
     		opcode = "00100";
-    		rd = inst_list[i][1];
-    		rn = inst_list[i][2];
-    		shifter_operand = inst_list[i][3];
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + operand_transform(rn) + operand_transform(rd) + operand_transform(shifter_operand);
-    		cout << "binary MOD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + operand_transform(rn) + " "  + operand_transform(rd) + " "  + operand_transform(shifter_operand) << endl;
+    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+    		cout << "binary MOD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
     		binary_inst.push_back(b);
     	}
     	else if(inst_list[i][0] == "CMP"){
     		opcode = "01010";
-    		rd = inst_list[i][1];
-    		rn = inst_list[i][2];
-    		shifter_operand = inst_list[i][3];
-    		string b = cond + is_branch + i_bit + opcode + s_bit  + operand_transform(rn) + operand_transform(rd) + operand_transform(shifter_operand);
-    		cout << "binary CMP inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + operand_transform(rn) + " "  + operand_transform(rd) + " "  + operand_transform(shifter_operand) << endl;
+    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+    		cout << "binary CMP inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
     		binary_inst.push_back(b);
     	}
     	else if(inst_list[i][0] == "LD"){
