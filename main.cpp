@@ -510,6 +510,7 @@ void single_instruction_pipe_with_cache(vector<vector<string>> instructs, string
         cout << "REGISTER 0: " << reg[0] << endl;
         cout << "REGISTER 1: " << reg[1] << endl;
         cout << "REGISTER 2: " << reg[2] << endl;
+        cout << "REGISTER 3: " << reg[3] << endl;
         cout << "CURRENT PC: " << global_pc << endl;
         for(int i = 0; i < cur_pipe_size; i++){ // look at each of the instructions in the pipe
         cout << "pipe size: " << instructs.size() << endl;
@@ -560,6 +561,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
         cout << "REGISTER 0: " << reg[0] << endl;
         cout << "REGISTER 1: " << reg[1] << endl;
         cout << "REGISTER 2: " << reg[2] << endl;
+        cout << "REGISTER 3: " << reg[3] << endl;
         cout << "CURRENT PC: " << global_pc << endl;
         for(int i = 0; i < cur_pipe_size; i++){ // look at each of the instructions in the pipe
         cout << "pipe size: " << instructs.size() << endl;
@@ -652,7 +654,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
             instructs.push_back(new_ins);
         }
         string x;
-        //cin >> x;
+        cin >> x;
     }
 }
 
@@ -718,8 +720,13 @@ int main(int argc, char *argv[]){
     }
     
 
-    cout << "Register 2 result from MOV: " << reg[2] << endl;
-    
+    cout << "Register 0 should be 11111111111111111111111111111001:  " << reg[0] << endl;
+    cout << "Register 1 should be 00000000000000000000000000000010:  " << reg[1] << endl;
+    cout << "Register 2 should be 00001111111111111111111111111110:  " << reg[2] << endl;
+    cout << "Register 3 should be 00000000000000000000000000000100:  " << reg[3] << endl;
+    cout << "Memory position 25 should be 00000000000000000000000000000000:\n" << global_mem.view("00011001", "1") << endl;
+    cout << "Memory position 26 should be 00001111111111111111111111111110:\n" << global_mem.view("00011010", "1") << endl;
+
     //COUNTING LOOP PRINT STUFF
    /* cout << "Printing memory location STR wrote to..." << endl;
     cout << global_mem.view("00001010", "1") << endl;*/
