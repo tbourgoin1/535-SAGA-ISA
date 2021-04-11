@@ -296,19 +296,6 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
             global_cmp = rd;
         }
     }
-
-    if(instruction == "CMP"){
-        if(reg[mem.binary_int( stoll(rn) )] < reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if less than, global_cmp = 00
-            rd = "00";
-        }
-        else if(reg[mem.binary_int( stoll(rn) )] > reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if greater than, global_cmp = 11
-            rd = "11";
-        }
-        else{ // if gequal, global_cmp = 01
-            rd = "01";
-        }
-        memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc); // placeholder for data, not used in memory_pipe. the "data" is rd
-    }
     
     if(instruction == "LD" || instruction == "STR"){ // load and store, do nothing. never stalls
     }
@@ -458,12 +445,6 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
             shift_opt = instruction.substr(20,12); // first 5 bits are the amount we're shifting by (# of places to shift), last 7 bits are unused
             instruction = "RS";
         }
-        if(op_code == "01010"){ // CMP
-            string rn = instruction.substr(12,4); // register with first operand
-            string rd = global_cmp; // destination register, it'll always be global_cmp so we can retain it for next instruction
-            string shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
-            execute("CMP", rn, rd, shift_opt, mem, reg, pc);
-        }
         if(op_code == "01111"){ // LOAD
             cout << "LD IN DECODE" << endl;
             rn = instruction.substr(12,8); // Memory address containing value to be loaded
@@ -481,11 +462,6 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
             rn = instruction.substr(12, 20); // target_addr, the address we want to branch to if conditions are true
             rd = instruction.substr(0, 4); // need cond code for execute to determine to branch or not
             instruction = "B";
-        }
-        if(op_code == "11000"){ // BRANCH
-            string target_address = global_loop; // address we branch to (will ALWAYS BE global_loop, set pc to this) if the condition is true, otherwise just go to pc++ address
-            string condition_code = instruction.substr(0, 4); // need cond code for execute to determine to branch or not
-            execute("B", target_address, condition_code, "", mem, reg, pc); // target addr acts as rn in execute, condition code is rd. need no other data besides pc
         }
     }
 
@@ -678,7 +654,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
             instructs.push_back(new_ins);
         }
         string x;
-        cin >> x;
+        //cin >> x;
     }
 }
 
@@ -748,8 +724,7 @@ int main(int argc, char *argv[]){
     cout << "Register 1 should be 00000000000000000000000000000010:  " << reg[1] << endl;
     cout << "Register 2 should be 00001111111111111111111111111110:  " << reg[2] << endl;
     cout << "Register 3 should be 00000000000000000000000000000100:  " << reg[3] << endl;
-    cout << "Memory position 25 should be 00000000000000000000000000000000:\n" << global_mem.view("00011001", "1") << endl;
-    cout << "Memory position 26 should be 00001111111111111111111111111110:\n" << global_mem.view("00011010", "1") << endl;
+    cout << "Memory position 25 should be 00000000000000000000000000000000, and 26 should be 00001111111111111111111111111110:\n" << global_mem.view("00011001", "1") << endl;
 
     //COUNTING LOOP PRINT STUFF
    /* cout << "Printing memory location STR wrote to..." << endl;
@@ -765,4 +740,3 @@ int main(int argc, char *argv[]){
     }*/
     return 0;
 }
-
