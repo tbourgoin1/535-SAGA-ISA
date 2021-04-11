@@ -25,7 +25,7 @@ string operand_transform(string in){
 	string out;
 	if(in[in.size()-1] == ',')
 		in = in.substr(0, in.size()-1);
-	if(in[0] == '#' || in[0] == 'r'){
+	if(in[0] == '#' || in[0] == 'r' || in[0] == 'm'){
 		// convert int to binary
 		// 256 ram address so int converted to 8 bits
 		out = int_to_binary(stoll(in.substr(1, in.size()-1)));
