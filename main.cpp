@@ -663,15 +663,15 @@ int main(int argc, char *argv[]){
 
     ifstream file_reader; // reads commands.txt for each command
      string command; // each command from file_reader
-     file_reader.open("commands.txt");
+     file_reader.open("program_setup.txt"); 
      if(!file_reader){
         cerr << "Unable to open file!";
         exit(1);
     }
 
     int pc_limit = 0;
-    while(getline(file_reader, command)){ // read in all commands from file
-        cout << "current command: " << command << endl;
+    // any values that need to be written to memory (or other commands) before the instructions start executing (for LDs, for example)
+    while(getline(file_reader, command)){ // read in all memory writes, reads, or views in binary from file
         if(command.substr(0, 1) == "w"){ //  write something to memory
             string param1 = command.substr(2, 8); // addr for write
             string param2 = command.substr(11, 32); // data for write
@@ -686,10 +686,9 @@ int main(int argc, char *argv[]){
             string param2 = command.substr(11, 1); // level for view
             cout << "view returned: \n" << global_mem.view(param1, param2) << endl;
         }
-        if(command.substr(44, 1) == "p"){ // additional input from the file telling us it's a pipeline instruction - so we know when to stop creating threads
-            pc_limit++;
-        }
      }
+
+     //CALL ASSEMBLER HERE, THEN WRITE INSTRUCTIONS TO MEMORY
 
     vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
     vector<string> new_ins = {"F", "", "", "", "", "", ""}; // used throughout to add new instructions
