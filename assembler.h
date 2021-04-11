@@ -10,7 +10,7 @@ class assembler{
     private:
         int x;
     public:
-        int execute_assembler();
+        vector<string> execute_assembler();
         vector<string> translate_instructions(vector<vector<string>> inst_list);
         vector<vector<string>> vectorize_file(string filename);
         vector<string> tokenize_line(string instruction);

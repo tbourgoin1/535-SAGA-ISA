@@ -691,9 +691,15 @@ int main(int argc, char *argv[]){
 
     assembler as;
     //CHANGE TO VECTOR
-    int res = as.execute_assembler(); // Parse instructions with assembler - receive vector of binary instructions
+    vector<string> binary_ins_list = as.execute_assembler(); // Parse instructions with assembler - receive vector of binary instructions
 
     //LOOP THROUGH VECTOR, WRITE EACH INSTRUCTION TO MEMORY STARTING AT 00000000. COUNT UP PC_LIMIT PER WRITE
+    cout << "instruction list size: " << binary_ins_list.size() << endl;
+    for(int i = 0; i < binary_ins_list.size(); i++){
+        cout << "addr: " << int_to_binary(i) << "\ndata: " << binary_ins_list[i] << endl;
+        global_mem.write(int_to_binary(i), binary_ins_list[i]);
+        pc_limit++;
+    }
 
     
 

@@ -144,7 +144,7 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
     	else if(inst_list[i][0] == "B"){
     		//needs adjustment
     		opcode = "11000";
-    		cout << "binary LOAD inst: " << endl;
+    		cout << "binary BRANCH inst: " << endl;
     	}
 		else if(inst_list[i][0] == "AND"){
     		opcode = "00101";
@@ -156,8 +156,7 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
     return binary_inst;
 }
 
-int assembler::execute_assembler() {
+vector<string> assembler::execute_assembler() {
 	string file = "instruction.txt";
-    translate_instructions(vectorize_file(file));
-    return 0;
+    return translate_instructions(vectorize_file(file));
 }
