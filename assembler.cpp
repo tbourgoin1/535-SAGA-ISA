@@ -83,6 +83,34 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
 	    string rd;
 	    string shifter_operand;
 
+        operation = inst_list[i][0];
+        string scan;
+        if(operation.size() > 3){
+            scan = operation.substr(operation.size()-3, 3);
+            if(scan == "NEQ" || scan == "LTE" || scan == "GTE"){
+                operation = operation.substr(0, operation.size()-3);
+                if(scan == "NEQ")
+                    cond = "0010";
+                else if(scan == "LTE")
+                    cond = "0100";
+                else if(scan == "GTE")
+                    cond = "0110";
+            }
+        }
+        else if(operation.size() > 2){
+            scan = operation.substr(operation.size()-2, 2);
+            if(scan == "EQ" || scan == "LT" || scan == "GT"){
+                operation = operation.substr(0, operation.size()-2);
+                if(scan == "EQ")
+                    cond = "0001";
+                else if(scan == "LT")
+                    cond = "0011";
+                else if(scan == "GT")
+                    cond = "0101";
+            }
+        }
+
+
 	    int inst_length = inst_list[i].size();
 	    rd = operand_transform(inst_list[i][1]);
 
@@ -133,18 +161,24 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
     		shifter_operand = "00000000";
     		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
     		cout << "binary LOAD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-    	}
+    	    binary_inst.push_back(b);
+        }
     	else if(inst_list[i][0] == "STR"){
     		//needs adjustment
     		opcode = "10001";
     		shifter_operand = "00000000";
     		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
     		cout << "binary STORE inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-    	}
+    	    binary_inst.push_back(b);
+        }
     	else if(inst_list[i][0] == "B"){
     		//needs adjustment
     		opcode = "11000";
-    		cout << "binary BRANCH inst: " << endl;
+            rn = "00000000";
+            shifter_operand = "00000000";
+            string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+            cout << "binary BRANCH inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+            binary_inst.push_back(b);
     	}
 		else if(inst_list[i][0] == "AND"){
     		opcode = "00101";
@@ -158,5 +192,6 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
 
 vector<string> assembler::execute_assembler() {
 	string file = "instruction.txt";
+    //cout << file.substr(file.size()-2, 2) << endl;
     return translate_instructions(vectorize_file(file));
 }
