@@ -146,6 +146,12 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
     		opcode = "11000";
     		cout << "binary LOAD inst: " << endl;
     	}
+		else if(inst_list[i][0] == "AND"){
+    		opcode = "00101";
+    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+    		cout << "binary AND inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+    		binary_inst.push_back(b);
+    	}
     }
     return binary_inst;
 }
