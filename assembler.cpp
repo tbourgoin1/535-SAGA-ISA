@@ -127,12 +127,16 @@ vector<string> translate_instructions(vector<vector<string>> inst_list){
     	else if(inst_list[i][0] == "LD"){
     		//needs adjustment
     		opcode = "01111";
-    		cout << "binary LOAD inst: " << endl;
+    		shifter_operand = "00000000";
+    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+    		cout << "binary LOAD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
     	}
     	else if(inst_list[i][0] == "STR"){
     		//needs adjustment
     		opcode = "10001";
-    		cout << "binary LOAD inst: " << endl;
+    		shifter_operand = "00000000";
+    		string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+    		cout << "binary STORE inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
     	}
     	else if(inst_list[i][0] == "B"){
     		//needs adjustment
