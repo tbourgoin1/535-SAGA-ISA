@@ -1,7 +1,21 @@
-LD r0, m7
-LD r1, m8
-LD r2, m9
-ADD r0, r0, r1
+LD r0, m21
+LD r1, m22
+LD r2, m23
+SUB r0, r0, r1
 CMP r0, r0, r2
-BLT m3
-STR r0, m6
+BGT m3
+STR r0, m25
+LD r3, m24
+ADD r0, r0, r3
+MUL r0, r0, r0
+ADD r1, r1, r1
+DIV r0, r0, r1
+MOD r0, r0, r1
+AND r0, r0, r1
+OR r0, r0, r3
+NOT r0, r0
+XOR r0, r0, r1
+MOV r2, r0
+LS r2, r2, #2
+RS r2, r2, #4
+STR r2, m26

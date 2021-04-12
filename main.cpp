@@ -655,7 +655,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
             instructs.push_back(new_ins);
         }
         string x;
-        //cin >> x;
+        cin >> x;
     }
 }
 

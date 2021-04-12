@@ -275,6 +275,16 @@
     w 00000100 00000000000000000000000000000011 n
 
 
+    // BASIC COUNTING LOOP ASSEMBLY THAT WORKS:
+    LD r0, m7
+    LD r1, m8
+    LD r2, m9
+    ADD r0, r0, r1
+    CMP r0, r0, r2
+    BLT m3
+    STR r0, m6
+    
+    
     // 4/12 DEMO PROGRAM
     SUBTRACTION TO 0 LOOP, ADD 4 TO IT, MULTIPLY BY 4, DIVIDE BY 2, MOD 2, AND IT WITH ONE REG, OR IT WITH ANOTHER, NOT, XOR WITH AND REG, MOV TO ANOTHER REG, LS BY 2, RS BY 4
     reg[0] = 5, reg[1] = 1, reg[2] = 0, reg[3] = 4
@@ -353,4 +363,27 @@
     w 00010110 00000000000000000000000000000001 n
     w 00010111 00000000000000000000000000000000 n
     w 00011000 00000000000000000000000000000100 n
+
+    ASSEMBLER FORMAT:
+    LD r0, m21
+    LD r1, m22
+    LD r2, m23
+    SUB r0, r0, r1
+    CMP r0, r0, r2
+    BGT m3
+    STR r0, m25
+    LD r3, m24
+    ADD r0, r0, r3
+    MUL r0, r0, r0
+    ADD r1, r1, r1
+    DIV r0, r0, r1
+    MOD r0, r0, r1
+    AND r0, r0, r1
+    OR r0, r0, r3
+    NOT r0, r0
+    XOR r0, r0, r1
+    MOV r2, r0
+    LS r2, r2, #2
+    RS r2, r2, #4
+    STR r2, m26
     
