@@ -110,20 +110,12 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
             }
         }
 
-
-	    int inst_length = inst_list[i].size();
-	    rd = operand_transform(inst_list[i][1]);
-
-	    if(inst_length == 4) // has shifter_operand
-    		shifter_operand = operand_transform(inst_list[i][3]);
-	    if(inst_length > 2) // has second operand
-            if(operation == "MOV")
-                shifter_operand = operand_transform(inst_list[i][2]);
-            else
-                rn = operand_transform(inst_list[i][2]);
-
         if(operation == "ADD" || operation == "SUB" || operation == "MUL" || operation == "DIV" || operation == "MOD" || operation == "CMP" || operation == "AND" ||
             operation == "NOT" || operation == "XOR" || operation == "OR" || operation == "LS" || operation == "RS"){
+
+            rd = operand_transform(inst_list[i][1]).substr(4,4);
+            rn = operand_transform(inst_list[i][2]).substr(4,4);
+            shifter_operand = operand_transform(inst_list[i][3]).substr(4, 4) + "00000000";
 
         	if(operation == "ADD"){
         		opcode = "00000";
@@ -165,20 +157,14 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
                 opcode = "00111";
                 cout << "binary OR inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
             }
-            else if(operation == "LS"){
-                opcode = "10111";
-                cout << "binary LS inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-            }
-            else if(operation == "RS"){
-                opcode = "10000";
-                cout << "binary RS inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-            }
 
             string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
             binary_inst.push_back(b);
         }
         else if(operation == "LD" || operation == "STR"){
             shifter_operand = "00000000";
+            rd = operand_transform(inst_list[i][1]).substr(4,4);
+            rn = operand_transform(inst_list[i][2]);
             if(operation == "LD"){
         		opcode = "01111";
         		cout << "binary LOAD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
@@ -190,8 +176,23 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
             string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
             binary_inst.push_back(b);
         }
+        else if(operation == "LS" || operation == "RS"){
+            rd = operand_transform(inst_list[i][1]).substr(4,4);
+            rn = operand_transform(inst_list[i][2]).substr(4,4);
+            shifter_operand = operand_transform(inst_list[i][3]).substr(3, 5) + "0000000";
+            if(operation == "LS"){
+                opcode = "10111";
+                cout << "binary LS inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+            }
+            else if(operation == "RS"){
+                opcode = "10000";
+                cout << "binary RS inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
+            }
+        }
         else if(operation == "MOV"){
             rn = "0000";
+            rd = operand_transform(inst_list[i][1]).substr(4,4);
+            shifter_operand = operand_transform(inst_list[i][2]).substr(4, 4) + "00000000";
             opcode = "01011";
             string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
             cout << "binary MOV inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
@@ -200,8 +201,9 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
     	else if(operation == "B"){
     		//needs adjustment
     		opcode = "11000";
-            rn = "00000000";
-            shifter_operand = "00000000";
+            rn = "0000";
+            shifter_operand = "000000000000";
+            rd = operand_transform(inst_list[i][1]).substr(4,4);
             string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
             cout << "binary BRANCH inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
             binary_inst.push_back(b);
