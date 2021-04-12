@@ -3,7 +3,7 @@
 #include <windows.h> //for Sleep
 #include <fstream> // read text file for commands
 #include <vector>
-#include <algorithm>
+#include <chrono> // for time of exeuction
 #include "memory.h"
 #include "assembler.h"
 using namespace std;
@@ -149,7 +149,6 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
             if(initial_result >= 256){ // MAXIMUM OF 256 BECAUSE INT_TO_BINARY RETURNS 8 BIT RESULT, UNLESS WE CHANGE IT
                 initial_result = 256;
                 cout << "ADD AT MAX VALUE!!!! NEED TO CHANGE INT_TO_BINARY" << endl;
-                Sleep(1000);
             }
             string eight_bit_result = int_to_binary(initial_result);
             data = "000000000000000000000000" + eight_bit_result;
@@ -164,7 +163,6 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
             if(initial_result <= 0){ // MIN OF 0
                 initial_result = 0;
                 cout << "SUB AT MIN VALUE OF 0!!!! STAYING AT 0" << endl;
-                Sleep(1000);
             }
             string eight_bit_result = int_to_binary(initial_result);
             data = "000000000000000000000000" + eight_bit_result;
@@ -179,7 +177,6 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
             if(initial_result >= 256){ // MAXIMUM OF 256 BECAUSE INT_TO_BINARY RETURNS 8 BIT RESULT, UNLESS WE CHANGE IT
                 initial_result = 256;
                 cout << "MUL AT MAX VALUE!!!! NEED TO CHANGE INT_TO_BINARY" << endl;
-                Sleep(1000);
             }
             string eight_bit_result = int_to_binary(initial_result);
             data = "000000000000000000000000" + eight_bit_result;
@@ -655,7 +652,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
             instructs.push_back(new_ins);
         }
         string x;
-        cin >> x;
+       // cin >> x;
     }
 }
 
@@ -708,6 +705,7 @@ int main(int argc, char *argv[]){
     instructs.push_back(new_ins); // first fetch instruction params now in instructs vector
     cout << "Please enter which mode you would like to execute the pipeline in:\n00 = no cache, no pipe\n01 = no cache, yes pipe\n10 = yes cache, no pipe\n11 = yes cache, yes pipe" << endl;
     string run_mode;
+    chrono::system_clock::time_point start; // start of function execution time
     while(1){
         cin >> run_mode;
         if(run_mode == "00"){
@@ -719,10 +717,12 @@ int main(int argc, char *argv[]){
             break;
         }
         if(run_mode == "10"){
+            start = chrono::system_clock::now();
             single_instruction_pipe_with_cache(instructs, reg, pc_limit); // execute single threaded pipeline with cache
             break;
         }
         if(run_mode == "11"){
+            start = chrono::system_clock::now();
             concurrent_pipe_with_cache(instructs, false, reg, pc_limit); // execute multithreaded pipeline with cache
             break;
         }
@@ -730,6 +730,8 @@ int main(int argc, char *argv[]){
             cout << "Incorrect input, try again!" << endl;
         }
     }
+
+    chrono::system_clock::time_point end = chrono::system_clock::now(); // end of function execution time
     
 
     cout << "Register 0 should be 11111111111111111111111111111001:  " << reg[0] << endl;
@@ -737,5 +739,9 @@ int main(int argc, char *argv[]){
     cout << "Register 2 should be 00001111111111111111111111111110:  " << reg[2] << endl;
     cout << "Register 3 should be 00000000000000000000000000000100:  " << reg[3] << endl;
     cout << "Memory position 25 should be 00000000000000000000000000000000, and 26 should be 00001111111111111111111111111110:\n" << global_mem.view("00011001", "1") << endl;
+    
+    auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
+    cout << "Time to run: " << duration.count() << "ms" << endl;
+    
     return 0;
 }
