@@ -1,4 +1,7 @@
-ADD r1, r2, r3
-SUB r3, r1, r2
-STR r3, m8
-LD r4, m8
+LD r0, m7
+LD r1, m8
+LD r2, m9
+ADD r0, r0, r1
+CMP r0, r0, r2
+BLT m3
+STR r0, m6

@@ -703,7 +703,7 @@ int main(int argc, char *argv[]){
 
     
 
-   /* vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
+    vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
     vector<string> new_ins = {"F", "", "", "", "", "", ""}; // used throughout to add new instructions
     instructs.push_back(new_ins); // first fetch instruction params now in instructs vector
     cout << "Please enter which mode you would like to execute the pipeline in:\n00 = no cache, no pipe\n01 = no cache, yes pipe\n10 = yes cache, no pipe\n11 = yes cache, yes pipe" << endl;
@@ -737,6 +737,5 @@ int main(int argc, char *argv[]){
     cout << "Register 2 should be 00001111111111111111111111111110:  " << reg[2] << endl;
     cout << "Register 3 should be 00000000000000000000000000000100:  " << reg[3] << endl;
     cout << "Memory position 25 should be 00000000000000000000000000000000, and 26 should be 00001111111111111111111111111110:\n" << global_mem.view("00011001", "1") << endl;
-    */
     return 0;
 }

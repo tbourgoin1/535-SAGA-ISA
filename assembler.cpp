@@ -201,9 +201,9 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
     	else if(operation == "B"){
     		//needs adjustment
     		opcode = "11000";
-            rn = "0000";
-            shifter_operand = "000000000000";
-            rd = operand_transform(inst_list[i][1]).substr(4,4);
+            rn = "000000000000" + operand_transform(inst_list[i][1]);
+            shifter_operand = "";
+            rd = "";
             string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
             cout << "binary BRANCH inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
             binary_inst.push_back(b);
