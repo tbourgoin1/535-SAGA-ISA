@@ -7,8 +7,6 @@
 
 using namespace std;
 
-int x;
-
 string assembler::int_to_binary_assembler(int n) {
     string r;
     while(n!=0){
@@ -110,12 +108,25 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
             }
         }
 
-        if(operation == "ADD" || operation == "SUB" || operation == "MUL" || operation == "DIV" || operation == "MOD" || operation == "CMP" || operation == "AND"
+        if(operation == "ADD" || operation == "SUB" || operation == "MUL" || operation == "DIV" || operation == "MOD" || operation == "AND"
 		 || operation == "XOR" || operation == "OR"){
 
             rd = operand_transform(inst_list[i][1]).substr(4,4);
             rn = operand_transform(inst_list[i][2]).substr(4,4);
             shifter_operand = operand_transform(inst_list[i][3]).substr(4, 4) + "00000000";
+
+            // gets i'th line of instructions from instruction.txt, the first argument after the instruction, then the first index of that instruction
+            if(inst_list[i][1][0] == '#'){
+                cout << "RD CAN'T BE A # FOR ALU INSTRUCTIONS. FIX INSTRUCTION" << endl;
+                exit(1);
+            }
+            if(inst_list[i][2][0] == '#'){ // if rn (1st operand) is a #, set i_bit to 1 so we know in the pipeline
+                i_bit = "1";
+            }
+            if(inst_list[i][3][0] == '#'){ // if shift opt (2nd operand) is a #, set s_bit to 1 so we know in the pipeline
+                s_bit = "1";
+            }
+
 
         	if(operation == "ADD"){
         		opcode = "00000";
@@ -137,17 +148,9 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
         		opcode = "00100";
         		cout << "binary MOD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
         	}
-        	else if(operation == "CMP"){
-        		opcode = "01010";
-        		cout << "binary CMP inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-        	}
             else if(operation == "AND"){
                 opcode = "00101";
                 cout << "binary AND inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
-            }
-            else if(operation == "NOT"){
-                opcode = "01000";
-                cout << "binary NOT inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
             }
             else if(operation == "XOR"){
                 opcode = "01001";
@@ -158,6 +161,21 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
                 cout << "binary OR inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
             }
 
+            string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
+            binary_inst.push_back(b);
+        }
+        else if(operation == "CMP"){
+            rd = "0000"; // unused dest reg, always global_cmp
+            rn = operand_transform(inst_list[i][1]).substr(4,4);
+            shifter_operand = operand_transform(inst_list[i][2]).substr(4, 4) + "00000000";
+            if(inst_list[i][1][0] == '#'){ // if rn (1st operand) is a #, set i_bit to 1 so we know in the pipeline
+                i_bit = "1";
+            }
+            if(inst_list[i][2][0] == '#'){ // if shift opt (2nd operand) is a #, set s_bit to 1 so we know in the pipeline
+                s_bit = "1";
+            }
+            opcode = "01010";
+        	cout << "binary CMP inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
             string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
             binary_inst.push_back(b);
         }
@@ -180,6 +198,9 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
             shifter_operand = "000000000000";
             rd = operand_transform(inst_list[i][1]).substr(4, 4);
             rn = operand_transform(inst_list[i][2]).substr(4, 4);
+            if(inst_list[i][2][0] == '#'){ // if shift opt (operand) is a #, set i_bit to 1 so we know in the pipeline
+                i_bit = "1";
+            }
 			opcode = "01000";
 			cout << "binary NOT inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
             string b = cond + is_branch + i_bit + opcode + s_bit  + rn + rd + shifter_operand;
@@ -210,7 +231,6 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
             binary_inst.push_back(b);
         }
     	else if(operation == "B"){
-    		//needs adjustment
     		opcode = "11000";
             rn = "000000000000" + operand_transform(inst_list[i][1]);
             shifter_operand = "";

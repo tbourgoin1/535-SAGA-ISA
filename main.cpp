@@ -20,6 +20,8 @@ struct to_return{ // used to return from each stage
     string rd;
     string shifter;
     string cond_code;
+    string i_bit;
+    string s_bit;
 };
 
 string int_to_binary(int n) {
@@ -82,8 +84,6 @@ void writeback(string instruction, string data, string rn, string rd, string con
     if(instruction == "STR" || instruction == "B"){
         cout << "writeback does not need to write to registers for this instruction." << endl;
     }
-    if(instruction == "NO_OP"){ // do nothing
-    }
 
 }
 
@@ -93,9 +93,7 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
         is_cond_code_true = cond_code_helper(cond_code);
     }
 
-    // no interaction with memory for ALU ops or branch. here for refernence, can remove later
-    if(instruction == "ADD" || instruction == "SUB" || instruction == "MUL" || instruction == "DIV" || instruction == "MOD" || instruction == "AND" || instruction == "NOT" || instruction == "OR" || instruction == "XOR" || instruction == "MOV" || instruction == "CMP" || instruction == "LS" || instruction == "RS" || instruction == "B"){
-    }
+    // math ops, CMP. MOV, shifts, and branch do nothing here
 
     if(instruction == "LD"){ // read the value from memory we want to store in a register. CAN STALL IF CACHE MISS.
         if(is_cond_code_true){
@@ -120,8 +118,6 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
             Sleep(300); // write stall
         }
     }
-    if(instruction == "NO_OP"){ // don't do anything, continue to pass blanks
-    }
 
     to_return me;
     me.ins_type = "W";
@@ -135,7 +131,7 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
     
 }
 
-to_return execute(string instruction, string rn, string rd, string shifter, string cond_code, memory mem, string reg[], int pc) {
+to_return execute(string instruction, string rn, string rd, string shifter, string cond_code, string i_bit, string s_bit, memory mem, string reg[], int pc) {
     string data = "";
     bool is_cond_code_true = true; // defaults to true if '0000', it's unconditional so should always execute
     if(cond_code != "0000"){ // may set to false if it isn't true. Don't execute in this case.
@@ -143,9 +139,21 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
     }
     if(instruction == "ADD"){ 
         if(is_cond_code_true){
-            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]
-            string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
-            int initial_result = mem.binary_int(stoll(op1)) + mem.binary_int(stoll(op2));
+            int op1;
+            int op2;
+            if(i_bit == "1"){ // uses literal # number for 1st op
+                op1 = mem.binary_int( stoll(rn) ); // converts from binary to int rather than getting index
+            }
+            else{ // else uses register
+                op1 = mem.binary_int(stoll(reg[mem.binary_int( stoll(rn) )])); // gets first operand by converting rn to an index for reg[] and converting result into int
+            }
+            if(s_bit == "1"){ // uses literal # number for 2nd op
+                op2 = mem.binary_int( stoll(shifter.substr(0, 4)) );
+            }
+            else{ // else uses register
+                op2 = mem.binary_int(stoll(reg[mem.binary_int( stoll(shifter.substr(0, 4)) )])); // gets second operand by converting the first 4 bits of shifter to an index for reg[] and converting result into int
+            }
+            int initial_result = op1 + op2;
             if(initial_result >= 256){ // MAXIMUM OF 256 BECAUSE INT_TO_BINARY RETURNS 8 BIT RESULT, UNLESS WE CHANGE IT
                 initial_result = 256;
                 cout << "ADD AT MAX VALUE!!!! NEED TO CHANGE INT_TO_BINARY" << endl;
@@ -157,10 +165,22 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
 
     if(instruction == "SUB"){
         if(is_cond_code_true){
-            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
-            string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
-            int initial_result = mem.binary_int(stoll(op1)) - mem.binary_int(stoll(op2));
-            if(initial_result <= 0){ // MIN OF 0
+            int op1;
+            int op2;
+            if(i_bit == "1"){ // uses literal # number for 1st op
+                op1 = mem.binary_int( stoll(rn) ); // converts from binary to int rather than getting index
+            }
+            else{ // else uses register
+                op1 = mem.binary_int(stoll(reg[mem.binary_int( stoll(rn) )])); // gets first operand by converting rn to an index for reg[] and converting result into int
+            }
+            if(s_bit == "1"){ // uses literal # number for 2nd op
+                op2 = mem.binary_int( stoll(shifter.substr(0, 4)) );
+            }
+            else{ // else uses register
+                op2 = mem.binary_int(stoll(reg[mem.binary_int( stoll(shifter.substr(0, 4)) )])); // gets second operand by converting the first 4 bits of shifter to an index for reg[] and converting result into int
+            }
+            int initial_result = op1 - op2;
+            if(initial_result <= 0){ // MAXIMUM OF 256 BECAUSE INT_TO_BINARY RETURNS 8 BIT RESULT, UNLESS WE CHANGE IT
                 initial_result = 0;
                 cout << "SUB AT MIN VALUE OF 0!!!! STAYING AT 0" << endl;
             }
@@ -171,9 +191,21 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
 
     if(instruction == "MUL"){
         if(is_cond_code_true){
-            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
-            string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
-            int initial_result = mem.binary_int(stoll(op1)) * mem.binary_int(stoll(op2));
+            int op1;
+            int op2;
+            if(i_bit == "1"){ // uses literal # number for 1st op
+                op1 = mem.binary_int( stoll(rn) ); // converts from binary to int rather than getting index
+            }
+            else{ // else uses register
+                op1 = mem.binary_int(stoll(reg[mem.binary_int( stoll(rn) )])); // gets first operand by converting rn to an index for reg[] and converting result into int
+            }
+            if(s_bit == "1"){ // uses literal # number for 2nd op
+                op2 = mem.binary_int( stoll(shifter.substr(0, 4)) );
+            }
+            else{ // else uses register
+                op2 = mem.binary_int(stoll(reg[mem.binary_int( stoll(shifter.substr(0, 4)) )])); // gets second operand by converting the first 4 bits of shifter to an index for reg[] and converting result into int
+            }
+            int initial_result = op1 * op2;
             if(initial_result >= 256){ // MAXIMUM OF 256 BECAUSE INT_TO_BINARY RETURNS 8 BIT RESULT, UNLESS WE CHANGE IT
                 initial_result = 256;
                 cout << "MUL AT MAX VALUE!!!! NEED TO CHANGE INT_TO_BINARY" << endl;
@@ -185,10 +217,22 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
 
     if(instruction == "DIV"){
         if(is_cond_code_true){
-            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
-            string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
-            if(op2 != "00000000000000000000000000000000"){
-                int initial_result = mem.binary_int(stoll(op1)) / mem.binary_int(stoll(op2));
+            int op1;
+            int op2;
+            if(i_bit == "1"){ // uses literal # number for 1st op
+                op1 = mem.binary_int( stoll(rn) ); // converts from binary to int rather than getting index
+            }
+            else{ // else uses register
+                op1 = mem.binary_int(stoll(reg[mem.binary_int( stoll(rn) )])); // gets first operand by converting rn to an index for reg[] and converting result into int
+            }
+            if(s_bit == "1"){ // uses literal # number for 2nd op
+                op2 = mem.binary_int( stoll(shifter.substr(0, 4)) );
+            }
+            else{ // else uses register
+                op2 = mem.binary_int(stoll(reg[mem.binary_int( stoll(shifter.substr(0, 4)) )])); // gets second operand by converting the first 4 bits of shifter to an index for reg[] and converting result into int
+            }
+            if(op2 != 0){
+                int initial_result = op1 / op2;
                 string eight_bit_result = int_to_binary(initial_result);
                 data = "000000000000000000000000" + eight_bit_result;
             }
@@ -201,10 +245,22 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
 
     if(instruction == "MOD"){
         if(is_cond_code_true){
-            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
-            string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
-            if(op2 != "00000000000000000000000000000000"){
-                int initial_result = mem.binary_int(stoll(op1)) % mem.binary_int(stoll(op2));
+            int op1;
+            int op2;
+            if(i_bit == "1"){ // uses literal # number for 1st op
+                op1 = mem.binary_int( stoll(rn) ); // converts from binary to int rather than getting index
+            }
+            else{ // else uses register
+                op1 = mem.binary_int(stoll(reg[mem.binary_int( stoll(rn) )])); // gets first operand by converting rn to an index for reg[] and converting result into int
+            }
+            if(s_bit == "1"){ // uses literal # number for 2nd op
+                op2 = mem.binary_int( stoll(shifter.substr(0, 4)) );
+            }
+            else{ // else uses register
+                op2 = mem.binary_int(stoll(reg[mem.binary_int( stoll(shifter.substr(0, 4)) )])); // gets second operand by converting the first 4 bits of shifter to an index for reg[] and converting result into int
+            }
+            if(op2 != 0){
+                int initial_result = op1 % op2;
                 string eight_bit_result = int_to_binary(initial_result);
                 data = "000000000000000000000000" + eight_bit_result;
             }
@@ -217,8 +273,20 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
 
     if(instruction == "AND"){
         if(is_cond_code_true){
-            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
-            string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
+            string op1;
+            string op2;
+            if(i_bit == "1"){
+                op1 = "0000000000000000000000000000" + rn;
+            }
+            else{
+                op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
+            }
+            if(s_bit == "1"){
+                op2 = "0000000000000000000000000000" + shifter.substr(0, 4);
+            }
+            else{
+                op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
+            }
             for(int i = 0; i < op1.length(); i++){ // look at each character of the strings, AND them together
                 if(op1.substr(i, 1) == "1" && op2.substr(i, 1) == "1"){ // case where both are 1, AND true. append a 1
                     data.append("1");
@@ -232,8 +300,20 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
 
     if(instruction == "OR"){
         if(is_cond_code_true){
-            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
-            string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
+            string op1;
+            string op2;
+            if(i_bit == "1"){
+                op1 = "0000000000000000000000000000" + rn;
+            }
+            else{
+                op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
+            }
+            if(s_bit == "1"){
+                op2 = "0000000000000000000000000000" + shifter.substr(0, 4);
+            }
+            else{
+                op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
+            }
             for(int i = 0; i < op1.length(); i++){ // look at each character of the strings, OR them together
                 if(op1.substr(i, 1) == "1" || op2.substr(i, 1) == "1"){ // case where one or the other are 1, OR true. append a 1
                     data.append("1");
@@ -247,7 +327,13 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
 
     if(instruction == "NOT"){
         if(is_cond_code_true){
-            string op = reg[mem.binary_int( stoll(rn) )]; // gets operand by converting rn to an index for reg[]);
+            string op;
+            if(i_bit == "1"){
+                op = "0000000000000000000000000000" + rn;
+            }
+            else{
+                op = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
+            }
             for(int i = 0; i < op.length(); i++){ // look at each character of the string, flip its bits
                 if(op.substr(i, 1) == "1"){ // current char = 1, so append a 0
                     data.append("0");
@@ -261,8 +347,20 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
     
     if(instruction == "XOR"){
         if(is_cond_code_true){
-            string op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
-            string op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
+            string op1;
+            string op2;
+            if(i_bit == "1"){
+                op1 = "0000000000000000000000000000" + rn;
+            }
+            else{
+                op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
+            }
+            if(s_bit == "1"){
+                op2 = "0000000000000000000000000000" + shifter.substr(0, 4);
+            }
+            else{
+                op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
+            }
             for(int i = 0; i < op1.length(); i++){ // look at each character of the strings, OR them together
                 if(op1.substr(i, 1) != op2.substr(i, 1)){ // case where the chars are different, append a 1
                     data.append("1");
@@ -280,12 +378,27 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
         }
     }
 
-    if(instruction == "CMP"){ // CMP can't be conditional I don't think, so no checks for cond code 
-        if(reg[mem.binary_int( stoll(rn) )] < reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if less than, global_cmp = 00
+    if(instruction == "CMP"){ // CMP can't be conditional I don't think, so no checks for cond code
+        string op1;
+        string op2;
+        if(i_bit == "1"){
+            op1 = "0000000000000000000000000000" + rn;
+        }
+        else{
+            op1 = reg[mem.binary_int( stoll(rn) )]; // gets first operand by converting rn to an index for reg[]);
+        }
+        if(s_bit == "1"){
+            op2 = "0000000000000000000000000000" + shifter.substr(0, 4);
+        }
+        else{
+            op2 = reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]; // gets second operand by converting the first 4 bits of shifter to an index for reg[]
+        }
+        
+        if(op1 < op2){ // if less than, global_cmp = 00
             rd = "00";
             global_cmp = rd;
         }
-        else if(reg[mem.binary_int( stoll(rn) )] > reg[mem.binary_int( stoll(shifter.substr(0, 4)) )]){ // if greater than, global_cmp = 11
+        else if(op1 > op2){ // if greater than, global_cmp = 11
             rd = "11";
             global_cmp = rd;
         }
@@ -323,9 +436,6 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
             global_pc = pc;
         }
     }
-    if(instruction == "NO_OP") {
-        //memory_pipe(instruction, "", rn, rd, shifter, mem, reg, pc); //passes in blanks, no op
-    }
     to_return me;
     me.ins_type = "M";
     me.instruction = instruction;
@@ -334,6 +444,8 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
     me.shifter = shifter;
     me.data = data;
     me.cond_code = cond_code;
+    me.i_bit = i_bit;
+    me.s_bit = s_bit;
     return me;
 }
 
@@ -344,123 +456,119 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
     string rd;
     string shift_opt;
     string condition_code;
-    if(instruction.substr(0,4) == "1111"){ // special no-op case
-        //no op
-        //pass in null param
-       // execute("NO_OP", rn, rd, shift_opt, mem, reg, pc);
+
+    condition_code = instruction.substr(0, 4); // same place for all instructions, always first 4 bits for cond code
+    string op_code = instruction.substr(6,5); // same place for all instructions, always 5 bits at this position
+    string i_bit = instruction.substr(5, 1); // always in this position
+    string s_bit = instruction.substr(11, 1); // always in this position
+    if(op_code == "00000"){ // ADD
+        cout << "ADD IN DECODE" << endl;
+        rn = instruction.substr(12,4); // register with the first operand
+        rd = instruction.substr(16,4); // destination register for result
+        shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+        instruction = "ADD";
     }
-    else{
-        condition_code = instruction.substr(0, 4); // same place for all instructions, always first 4 bits for cond code
-        string op_code = instruction.substr(6,5);
-        if(op_code == "00000"){ // ADD
-            cout << "ADD IN DECODE" << endl;
-            rn = instruction.substr(12,4); // register with the first operand
-            rd = instruction.substr(16,4); // destination register for result
-            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
-            instruction = "ADD";
-        }
-        if(op_code == "00001"){ // SUB
-            cout << "SUB IN DECODE" << endl;
-            rn = instruction.substr(12,4); // register with the first operand
-            rd = instruction.substr(16,4); // destination register for result
-            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
-            instruction = "SUB";
-        }
-        if(op_code == "00010"){ // MUL
-            cout << "MUL IN DECODE" << endl;
-            rn = instruction.substr(12,4); // register with the first operand
-            rd = instruction.substr(16,4); // destination register for result
-            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
-            instruction = "MUL";
-        }
-        if(op_code == "00011"){ // DIV
-            cout << "DIV IN DECODE" << endl;
-            rn = instruction.substr(12,4); // register with the first operand
-            rd = instruction.substr(16,4); // destination register for result
-            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
-            instruction = "DIV";
-        }
-        if(op_code == "00100"){ // MOD
-            cout << "MOD IN DECODE" << endl;
-            rn = instruction.substr(12,4); // register with the first operand
-            rd = instruction.substr(16,4); // destination register for result
-            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
-            instruction = "MOD";
-        }
-        if(op_code == "00101"){ // AND
-            cout << "AND IN DECODE" << endl;
-            rn = instruction.substr(12,4); // register with the first operand
-            rd = instruction.substr(16,4); // destination register for result
-            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
-            instruction = "AND";
-        }
-        if(op_code == "00111"){ // OR
-            cout << "OR IN DECODE" << endl;
-            rn = instruction.substr(12,4); // register with the first operand
-            rd = instruction.substr(16,4); // destination register for result
-            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
-            instruction = "OR";
-        }
-        if(op_code == "01000"){ // NOT
-            cout << "NOT IN DECODE" << endl;
-            rn = instruction.substr(12,4); // register with the ONLY operand
-            rd = instruction.substr(16,4); // destination register for result
-            shift_opt = instruction.substr(20,12); // last 8 bits are options for shifts/constants (idk)
-            instruction = "NOT";
-        }
-        if(op_code == "01001"){ // XOR
-            cout << "XOR IN DECODE" << endl;
-            rn = instruction.substr(12,4); // register with the first operand
-            rd = instruction.substr(16,4); // destination register for result
-            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 bits are options for shifts/constants (idk)
-            instruction = "XOR";
-        }
-        if(op_code == "01010"){ // CMP
-            cout << "CMP IN DECODE" << endl;
-            rn = instruction.substr(12,4); // register with first operand
-            rd = global_cmp; // destination register, it'll always be global_cmp so we can retain it for next instruction
-            shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
-            instruction = "CMP";
-        }
-        if(op_code == "01011"){ // MOV
-            cout << "MOV IN DECODE" << endl;
-            rn = instruction.substr(12,4); // UNUSED but data taken so it isn't null
-            rd = instruction.substr(16,4); // destination register for the value being copied over
-            shift_opt = instruction.substr(20,12); // first 4 bits are register of the operand we want to copy FROM, last 8 bits are options for shifts/constants (idk)
-            instruction = "MOV";
-        }
-        if(op_code == "10111"){ // LS
-            cout << "LS IN DECODE" << endl;
-            rn = instruction.substr(12,4); // register to be shifted
-            rd = instruction.substr(16,4); // destination register for the shifted value
-            shift_opt = instruction.substr(20,12); // first 5 bits are the amount we're shifting by (# of places to shift), last 7 bits are unused
-            instruction = "LS";
-        }
-        if(op_code == "10000"){ // RS
-            cout << "RS IN DECODE" << endl;
-            rn = instruction.substr(12,4); // register to be shifted
-            rd = instruction.substr(16,4); // destination register for the shifted value
-            shift_opt = instruction.substr(20,12); // first 5 bits are the amount we're shifting by (# of places to shift), last 7 bits are unused
-            instruction = "RS";
-        }
-        if(op_code == "01111"){ // LOAD
-            cout << "LD IN DECODE" << endl;
-            rn = instruction.substr(12,8); // Memory address containing value to be loaded
-            rd = instruction.substr(20,4); // Specifies the destination register, which value we want to load the value into
-            instruction = "LD";
-        }
-        if(op_code == "10001"){ // STORE
-            cout << "STR IN DECODE" << endl;
-            rn = instruction.substr(12,8); // Memory address we want to store the value to
-            rd = instruction.substr(20,4); // Specifies the register that has the value we want to store in memory
-            instruction = "STR";
-        }
-        if(op_code == "11000"){ // BRANCH
-            cout << "BRANCH IN DECODE" << endl;
-            rn = instruction.substr(12, 20); // target_addr, the address we want to branch to if conditions are true
-            rd = instruction.substr(0, 4); // need cond code for execute to determine to branch or not
-            instruction = "B";
-        }
+    if(op_code == "00001"){ // SUB
+        cout << "SUB IN DECODE" << endl;
+        rn = instruction.substr(12,4); // register with the first operand
+        rd = instruction.substr(16,4); // destination register for result
+        shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+        instruction = "SUB";
+    }
+    if(op_code == "00010"){ // MUL
+        cout << "MUL IN DECODE" << endl;
+        rn = instruction.substr(12,4); // register with the first operand
+        rd = instruction.substr(16,4); // destination register for result
+        shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+        instruction = "MUL";
+    }
+    if(op_code == "00011"){ // DIV
+        cout << "DIV IN DECODE" << endl;
+        rn = instruction.substr(12,4); // register with the first operand
+        rd = instruction.substr(16,4); // destination register for result
+        shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+        instruction = "DIV";
+    }
+    if(op_code == "00100"){ // MOD
+        cout << "MOD IN DECODE" << endl;
+        rn = instruction.substr(12,4); // register with the first operand
+        rd = instruction.substr(16,4); // destination register for result
+        shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+        instruction = "MOD";
+    }
+    if(op_code == "00101"){ // AND
+        cout << "AND IN DECODE" << endl;
+        rn = instruction.substr(12,4); // register with the first operand
+        rd = instruction.substr(16,4); // destination register for result
+        shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+        instruction = "AND";
+    }
+    if(op_code == "00111"){ // OR
+        cout << "OR IN DECODE" << endl;
+        rn = instruction.substr(12,4); // register with the first operand
+        rd = instruction.substr(16,4); // destination register for result
+        shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+        instruction = "OR";
+    }
+    if(op_code == "01000"){ // NOT
+        cout << "NOT IN DECODE" << endl;
+        rn = instruction.substr(12,4); // register with the ONLY operand
+        rd = instruction.substr(16,4); // destination register for result
+        shift_opt = instruction.substr(20,12); // last 8 bits are options for shifts/constants (idk)
+        instruction = "NOT";
+    }
+    if(op_code == "01001"){ // XOR
+        cout << "XOR IN DECODE" << endl;
+        rn = instruction.substr(12,4); // register with the first operand
+        rd = instruction.substr(16,4); // destination register for result
+        shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 bits are options for shifts/constants (idk)
+        instruction = "XOR";
+    }
+    if(op_code == "01010"){ // CMP
+        cout << "CMP IN DECODE" << endl;
+        rn = instruction.substr(12,4); // register with first operand
+        rd = global_cmp; // destination register, it'll always be global_cmp so we can retain it for next instruction
+        shift_opt = instruction.substr(20,12); // first 4 bits are register of second operand, last 8 are options for shifts/constants (idk)
+        instruction = "CMP";
+    }
+    if(op_code == "01011"){ // MOV
+        cout << "MOV IN DECODE" << endl;
+        rn = instruction.substr(12,4); // UNUSED but data taken so it isn't null
+        rd = instruction.substr(16,4); // destination register for the value being copied over
+        shift_opt = instruction.substr(20,12); // first 4 bits are register of the operand we want to copy FROM, last 8 bits are options for shifts/constants (idk)
+        instruction = "MOV";
+    }
+    if(op_code == "10111"){ // LS
+        cout << "LS IN DECODE" << endl;
+        rn = instruction.substr(12,4); // register to be shifted
+        rd = instruction.substr(16,4); // destination register for the shifted value
+        shift_opt = instruction.substr(20,12); // first 5 bits are the amount we're shifting by (# of places to shift), last 7 bits are unused
+        instruction = "LS";
+    }
+    if(op_code == "10000"){ // RS
+        cout << "RS IN DECODE" << endl;
+        rn = instruction.substr(12,4); // register to be shifted
+        rd = instruction.substr(16,4); // destination register for the shifted value
+        shift_opt = instruction.substr(20,12); // first 5 bits are the amount we're shifting by (# of places to shift), last 7 bits are unused
+        instruction = "RS";
+    }
+    if(op_code == "01111"){ // LOAD
+        cout << "LD IN DECODE" << endl;
+        rn = instruction.substr(12,8); // Memory address containing value to be loaded
+        rd = instruction.substr(20,4); // Specifies the destination register, which value we want to load the value into
+        instruction = "LD";
+    }
+    if(op_code == "10001"){ // STORE
+        cout << "STR IN DECODE" << endl;
+        rn = instruction.substr(12,8); // Memory address we want to store the value to
+        rd = instruction.substr(20,4); // Specifies the register that has the value we want to store in memory
+        instruction = "STR";
+    }
+    if(op_code == "11000"){ // BRANCH
+        cout << "BRANCH IN DECODE" << endl;
+        rn = instruction.substr(12, 20); // target_addr, the address we want to branch to if conditions are true
+        rd = instruction.substr(0, 4); // need cond code for execute to determine to branch or not
+        instruction = "B";
     }
 
     to_return me;
@@ -471,6 +579,8 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
     me.shifter = shift_opt;
     me.data = "";
     me.cond_code = condition_code;
+    me.i_bit = i_bit;
+    me.s_bit = s_bit;
     return me;
 }
 
@@ -481,12 +591,6 @@ to_return fetch(int pc, memory mem, string reg[]) {
     cout << "FETCH READ STALL" << endl;
     Sleep(300); // read stall
     int current_cycles = mem.get_cycles();
-    if((current_cycles - prev_cycles) > 1){
-        for(int i = 0; i < current_cycles-prev_cycles; i++){
-            cout << "NO OP" << endl; // no op
-            string no_op = "11110000000000000000000000000000"; // cond code = 1111 for no-op
-        }
-    }
     pc++;
     global_pc = pc;
     to_return me;
@@ -497,6 +601,8 @@ to_return fetch(int pc, memory mem, string reg[]) {
     me.rd = "";
     me.shifter = "";
     me.cond_code = "";
+    me.i_bit = "";
+    me.s_bit = "";
     return me;
 }
 
@@ -507,8 +613,6 @@ void single_instruction_pipe_with_cache(vector<vector<string>> instructs, string
         int cur_pipe_size = 1;
         cout << "REGISTER 0: " << reg[0] << endl;
         cout << "REGISTER 1: " << reg[1] << endl;
-        cout << "REGISTER 2: " << reg[2] << endl;
-        cout << "REGISTER 3: " << reg[3] << endl;
         cout << "CURRENT PC: " << global_pc << endl;
         for(int i = 0; i < cur_pipe_size; i++){ // look at each of the instructions in the pipe
         cout << "pipe size: " << instructs.size() << endl;
@@ -516,32 +620,32 @@ void single_instruction_pipe_with_cache(vector<vector<string>> instructs, string
             if(instructs[0][0] == "F"){ // FETCH CASE
                 ret_val = fetch(global_pc, global_mem, reg); //  execute fetch
                 instructs.erase(instructs.begin()); // take out the instruction just used
-                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code}; // create new instruction with data gotten from fetch 
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code, ret_val.i_bit, ret_val.s_bit}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
             }
             else if(instructs[0][0] == "D"){ // DECODE CASE
                 ret_val = decode(instructs[0][1], global_mem, reg, global_pc); //  execute decode w/ instruction as first arg
                 instructs.erase(instructs.begin()); // take out the instruction just used
-                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code}; // create new instruction with data gotten from fetch 
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code, ret_val.i_bit, ret_val.s_bit}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
             }
             else if(instructs[0][0] == "E"){ // EXECUTE CASE
-                ret_val = execute(instructs[0][1], instructs[0][3], instructs[0][4], instructs[0][5], instructs[0][6], global_mem, reg, global_pc); //  execute fetch
+                ret_val = execute(instructs[0][1], instructs[0][3], instructs[0][4], instructs[0][5], instructs[0][6], instructs[0][7], instructs[0][8], global_mem, reg, global_pc); //  execute fetch
                 instructs.erase(instructs.begin()); // take out the instruction just used
-                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code}; // create new instruction with data gotten from fetch 
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code, ret_val.i_bit, ret_val.s_bit}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
             }
             else if(instructs[0][0] == "M"){ // MEMORY CASE
                 ret_val = memory_pipe(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][5], instructs[0][6], global_mem, reg, global_pc); //  execute memory_pipe
                 instructs.erase(instructs.begin()); // take out the instruction just used
-                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code}; // create new instruction with data gotten from fetch 
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code, ret_val.i_bit, ret_val.s_bit}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
             }
             else if(instructs[0][0] == "W"){ // WRITEBACK CASE
                 writeback(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][6], global_mem, reg, global_pc); //  execute writeback, no need for return val
                 instructs.erase(instructs.begin()); // take out the instruction just used
                 if(pc_limit - global_pc > 0){
-                    new_ins = {"F", "", "", "", "", "", ""}; // now that the current instruction is done, add the next in
+                    new_ins = {"F", "", "", "", "", "", "", "", ""}; // now that the current instruction is done, add the next in
                     instructs.push_back(new_ins);
                 }
             }
@@ -558,8 +662,6 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
         int cur_pipe_size = instructs.size();
         cout << "REGISTER 0: " << reg[0] << endl;
         cout << "REGISTER 1: " << reg[1] << endl;
-        cout << "REGISTER 2: " << reg[2] << endl;
-        cout << "REGISTER 3: " << reg[3] << endl;
         cout << "CURRENT PC: " << global_pc << endl;
         for(int i = 0; i < cur_pipe_size; i++){ // look at each of the instructions in the pipe
         cout << "pipe size: " << instructs.size() << endl;
@@ -567,7 +669,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
             if(instructs[0][0] == "F"){ // FETCH CASE
                 ret_val = fetch(global_pc, global_mem, reg); //  execute fetch
                 instructs.erase(instructs.begin()); // take out the instruction just used
-                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code}; // create new instruction with data gotten from fetch 
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code, ret_val.i_bit, ret_val.s_bit}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
             }
             else if(instructs[0][0] == "D"){ // DECODE CASE
@@ -610,7 +712,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
                         }
                     }
                 }
-                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code}; // create new instruction with data gotten from fetch 
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code, ret_val.i_bit, ret_val.s_bit}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list.
             }
             else if(instructs[0][0] == "E"){ // EXECUTE CASE
@@ -620,7 +722,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
                     old_pc = global_pc;
                     was_branch = true;
                 }
-                ret_val = execute(instructs[0][1], instructs[0][3], instructs[0][4], instructs[0][5], instructs[0][6], global_mem, reg, global_pc); //  execute execute
+                ret_val = execute(instructs[0][1], instructs[0][3], instructs[0][4], instructs[0][5], instructs[0][6], instructs[0][7], instructs[0][8], global_mem, reg, global_pc); //  execute execute
                 instructs.erase(instructs.begin()); // take out the instruction just used
                 if(was_branch){ // it was a branch, check for control hazards
                     if(old_pc != global_pc){ // check old pc with potentially updated PC. if changed, CONTROL HAZARD!
@@ -633,13 +735,13 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
                         }
                     }
                 }
-                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code}; // create new instruction with data gotten from fetch 
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code, ret_val.i_bit, ret_val.s_bit}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. if we had to squash from branch, this will be right after branch
             }
             else if(instructs[0][0] == "M"){ // MEMORY CASE
                 ret_val = memory_pipe(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][5], instructs[0][6], global_mem, reg, global_pc); //  execute memory_pipe
                 instructs.erase(instructs.begin()); // take out the instruction just used
-                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code}; // create new instruction with data gotten from fetch 
+                new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code, ret_val.i_bit, ret_val.s_bit}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
             }
             else if(instructs[0][0] == "W"){ // WRITEBACK CASE
@@ -648,7 +750,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
             }
         }
         if(instructs.size() < 5 && pc_limit - global_pc > 0 && !hazard_mode){ // pipe isn't full, add there IS a next instruction to add. so add it
-            new_ins = {"F", "", "", "", "", "", ""}; 
+            new_ins = {"F", "", "", "", "", "", "", "", ""}; 
             instructs.push_back(new_ins);
         }
         string x;
@@ -687,7 +789,6 @@ int main(int argc, char *argv[]){
     }   
 
     assembler as;
-    //CHANGE TO VECTOR
     vector<string> binary_ins_list = as.execute_assembler(); // Parse instructions with assembler - receive vector of binary instructions
 
     //LOOP THROUGH VECTOR, WRITE EACH INSTRUCTION TO MEMORY STARTING AT 00000000. COUNT UP PC_LIMIT PER WRITE
@@ -701,7 +802,7 @@ int main(int argc, char *argv[]){
     
 
     vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
-    vector<string> new_ins = {"F", "", "", "", "", "", ""}; // used throughout to add new instructions
+    vector<string> new_ins = {"F", "", "", "", "", "", "", "", ""}; // used throughout to add new instructions
     instructs.push_back(new_ins); // first fetch instruction params now in instructs vector
     cout << "Please enter which mode you would like to execute the pipeline in:\n00 = no cache, no pipe\n01 = no cache, yes pipe\n10 = yes cache, no pipe\n11 = yes cache, yes pipe" << endl;
     string run_mode;
@@ -735,9 +836,7 @@ int main(int argc, char *argv[]){
     
 
     cout << "Register 0 should be 11111111111111111111111111111001:  " << reg[0] << endl;
-    cout << "Register 1 should be 00000000000000000000000000000010:  " << reg[1] << endl;
-    cout << "Register 2 should be 00001111111111111111111111111110:  " << reg[2] << endl;
-    cout << "Register 3 should be 00000000000000000000000000000100:  " << reg[3] << endl;
+    cout << "Register 1 should be 00001111111111111111111111111110:  " << reg[1] << endl;
     cout << "Memory position 25 should be 00000000000000000000000000000000, and 26 should be 00001111111111111111111111111110:\n" << global_mem.view("00011001", "1") << endl;
     
     auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
