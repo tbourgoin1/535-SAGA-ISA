@@ -364,7 +364,7 @@
     w 00010111 00000000000000000000000000000000 n
     w 00011000 00000000000000000000000000000100 n
 
-    ASSEMBLER FORMAT:
+    ASSEMBLER FORMAT (OLD SLOW WAY USING ALL REGISTERS, STILL WORKS OFC):
     LD r0, m21
     LD r1, m22
     LD r2, m23
@@ -387,3 +387,21 @@
     RS r2, r2, #4
     STR r2, m26
     
+    ASSEMBLER FORMAT (NEW WAY USING #'s):
+    LD r0, m21
+    SUB r0, r0, #1
+    CMP r0, #0
+    BGT m1
+    STR r0, m25
+    ADD r0, r0, #4
+    MUL r0, r0, #4
+    DIV r0, r0, #2
+    MOD r0, r0, #2
+    AND r0, r0, #2
+    OR r0, r0, #4
+    NOT r0, r0
+    XOR r0, r0, #2
+    MOV r1, r0
+    LS r1, r1, #2
+    RS r1, r1, #4
+    STR r1, m26
