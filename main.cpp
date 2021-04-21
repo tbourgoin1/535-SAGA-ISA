@@ -87,7 +87,7 @@ void writeback(string instruction, string data, string rn, string rd, string con
 
 }
 
-to_return memory_pipe(string instruction, string data, string rn, string rd, string shifter, string cond_code, memory mem, string reg[], int pc) {
+to_return memory_pipe(string instruction, string data, string rn, string rd, string shifter, string cond_code, string s_bit, memory mem, string reg[], int pc) {
     bool is_cond_code_true = true; // defaults to true if '0000', it's unconditional so should always execute
     if(cond_code != "0000"){ // may set to false if it isn't true. Don't execute in this case.
         is_cond_code_true = cond_code_helper(cond_code);
@@ -97,25 +97,34 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
 
     if(instruction == "LD"){ // read the value from memory we want to store in a register. CAN STALL IF CACHE MISS.
         if(is_cond_code_true){
+            if(s_bit == "1"){ // we used as register holding a memory location rather than literal "m21" or something
+                string temp = reg[mem.binary_int( stoll(rn) )]; // gets memory location at the index of the register passed in
+                rn = temp.substr(24, 8); // changes rn for use in memory_pipe
+            }
             int prev_cycles = mem.get_cycles();
             data = mem.read(rn); // get value we want from memory
             for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
                 cout << "memory stalled, LD read" << endl;
-                Sleep(300); // read stall   
+               // Sleep(300); // read stall   
             }
         }
     }
 
     if(instruction == "STR"){
         if(is_cond_code_true){
+            if(s_bit == "1"){ // we used as register holding a memory location rather than literal "m21" or something
+                string temp = reg[mem.binary_int( stoll(rn) )]; // gets memory location at the index of the register passed in
+                rn = temp.substr(24, 8); // changes rn for use in memory_pipe
+            }
             data = reg[mem.binary_int( stoll(rd) )]; // get the data we want to store in memory from the right register
             int prev_cycles = mem.get_cycles();
+            cout << "\n\n\n\nrn: " << rn << endl; 
             mem.write(rn, data); // write the value we got from the register to memory
             global_mem = mem;
             for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
             }
             cout << "memory stalled, STR write" << endl;
-            Sleep(300); // write stall
+           // Sleep(300); // write stall
         }
     }
 
@@ -127,6 +136,7 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
     me.shifter = shifter;
     me.data = data;
     me.cond_code = cond_code;
+    me.s_bit = s_bit;
     return me;
     
 }
@@ -177,6 +187,7 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
                 op2 = mem.binary_int( stoll(shifter.substr(0, 4)) );
             }
             else{ // else uses register
+                cout << reg[4] << endl;
                 op2 = mem.binary_int(stoll(reg[mem.binary_int( stoll(shifter.substr(0, 4)) )])); // gets second operand by converting the first 4 bits of shifter to an index for reg[] and converting result into int
             }
             int initial_result = op1 - op2;
@@ -589,7 +600,7 @@ to_return fetch(int pc, memory mem, string reg[]) {
     int prev_cycles = mem.get_cycles();
     string instruction = mem.read(instruction_addr);
     cout << "FETCH READ STALL" << endl;
-    Sleep(300); // read stall
+   // Sleep(300); // read stall
     int current_cycles = mem.get_cycles();
     pc++;
     global_pc = pc;
@@ -611,8 +622,6 @@ void single_instruction_pipe_with_cache(vector<vector<string>> instructs, string
     vector<string> new_ins;
     while(!instructs.empty()){ // until we run out of instructions
         int cur_pipe_size = 1;
-        cout << "REGISTER 0: " << reg[0] << endl;
-        cout << "REGISTER 1: " << reg[1] << endl;
         cout << "CURRENT PC: " << global_pc << endl;
         for(int i = 0; i < cur_pipe_size; i++){ // look at each of the instructions in the pipe
         cout << "pipe size: " << instructs.size() << endl;
@@ -636,7 +645,7 @@ void single_instruction_pipe_with_cache(vector<vector<string>> instructs, string
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
             }
             else if(instructs[0][0] == "M"){ // MEMORY CASE
-                ret_val = memory_pipe(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][5], instructs[0][6], global_mem, reg, global_pc); //  execute memory_pipe
+                ret_val = memory_pipe(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][5], instructs[0][6], instructs[0][8], global_mem, reg, global_pc); //  execute memory_pipe
                 instructs.erase(instructs.begin()); // take out the instruction just used
                 new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code, ret_val.i_bit, ret_val.s_bit}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
@@ -660,8 +669,6 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
     vector<string> new_ins;
     while(!instructs.empty()){ // until we run out of instructions
         int cur_pipe_size = instructs.size();
-        cout << "REGISTER 0: " << reg[0] << endl;
-        cout << "REGISTER 1: " << reg[1] << endl;
         cout << "CURRENT PC: " << global_pc << endl;
         for(int i = 0; i < cur_pipe_size; i++){ // look at each of the instructions in the pipe
         cout << "pipe size: " << instructs.size() << endl;
@@ -739,7 +746,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. if we had to squash from branch, this will be right after branch
             }
             else if(instructs[0][0] == "M"){ // MEMORY CASE
-                ret_val = memory_pipe(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][5], instructs[0][6], global_mem, reg, global_pc); //  execute memory_pipe
+                ret_val = memory_pipe(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][5], instructs[0][6], instructs[0][8], global_mem, reg, global_pc); //  execute memory_pipe
                 instructs.erase(instructs.begin()); // take out the instruction just used
                 new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code, ret_val.i_bit, ret_val.s_bit}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
@@ -775,7 +782,9 @@ int main(int argc, char *argv[]){
         if(command.substr(0, 1) == "w"){ //  write something to memory
             string param1 = command.substr(2, 8); // addr for write
             string param2 = command.substr(11, 32); // data for write
+            cout << "HERE" << endl;
             global_mem.write(param1, param2);
+            cout << "HERE" << endl;
         }
         else if(command.substr(0, 1) == "r"){ // read from memory
             string param1 = command.substr(2, 8); // addr for read
@@ -834,13 +843,22 @@ int main(int argc, char *argv[]){
 
     chrono::system_clock::time_point end = chrono::system_clock::now(); // end of function execution time
     
+    cout << "\n\n\nFULL CACHE PRINT:" << endl;
+    for(int i = 0; i < 16; i++){
+        cout << global_mem.get_cache()[i] << endl;
+    }
+    cout << "\n\n\nFULL RAM PRINT:" << endl;
+    for(int i = 0; i < 256; i++){
+        cout << global_mem.get_ram()[i] << endl;
+    }
 
-    cout << "Register 0 should be 11111111111111111111111111111001:  " << reg[0] << endl;
-    cout << "Register 1 should be 00001111111111111111111111111110:  " << reg[1] << endl;
-    cout << "Memory position 25 should be 00000000000000000000000000000000, and 26 should be 00001111111111111111111111111110:\n" << global_mem.view("00011001", "1") << endl;
+    cout << "\n\n\nRAM[24] - RAM[53] PRINT (FOR EXCHANGE SORT BENCHMARK):" << endl;
+    for(int i = 24; i < 54; i++){
+        cout << global_mem.get_ram()[i] << endl;
+    }
     
     auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-    cout << "Time to run: " << duration.count() << "ms" << endl;
+    cout << "\nTime to run: " << duration.count() << "ms" << endl;
     
     return 0;
 }

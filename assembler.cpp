@@ -182,7 +182,10 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
         else if(operation == "LD" || operation == "STR"){
             shifter_operand = "00000000";
             rd = operand_transform(inst_list[i][1]).substr(4,4);
-            rn = operand_transform(inst_list[i][2]);
+            if(inst_list[i][2][0] == 'r'){ // if memory location is a register, we need to use that register's value as the memory location
+                s_bit = "1";
+            }
+            rn = operand_transform(inst_list[i][2]); // still needs to be 8 bits even if s_bit is 1 for instruction format
             if(operation == "LD"){
         		opcode = "01111";
         		cout << "binary LOAD inst: " << cond + " "  + is_branch + " "  + i_bit + " "  + opcode + " "  + s_bit + " "  + rn + " "  + rd + " "  + shifter_operand << endl;
