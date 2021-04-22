@@ -50,7 +50,7 @@ string memory::cache_write(string tag, string index, string offset, string dirty
     return new_write;
 }
 
-int memory::write(string addr, string data){ //respond with "wait" or "done", write to mem or cache
+int memory::write(string addr, string data, int mode){ //respond with "wait" or "done", write to mem or cache
     if(addr.size() != 8 || data.size() != 32){ // address size must be 8 and data size must be 32
         cout << "incorrect parameter format passed to write. Try again!" << endl;
         return 1;
@@ -65,22 +65,29 @@ int memory::write(string addr, string data){ //respond with "wait" or "done", wr
     
     cout << "writing to address " << address << endl;
     
-    if(this->cache[address][9] == '0'){ // checking valid bit - invalid case. Can just write as it's empty.
-        this->cache[address] = memory::cache_write(tag, index, offset, dirty, valid, data, address);
-        cycles++;
-    }
-    else if(this->cache[address][9] == '1'){ // checking valid bit - valid case. Need to do additional checks as it's been written to before
-        if(this->cache[address][8] == '1'){ // check dirty bit, if 1 then need to write back to ram before writing to cache
-            // write back all 4 words in cache line to memory
-            int ram_address = memory::binary_int( stoll(this->cache[address].substr(0,2) + index + offset) );
-            this->ram[ram_address] = this->cache[address].substr(10, 32); // data1
-            this->ram[ram_address+1] = this->cache[address].substr(42, 32); // data2
-            this->ram[ram_address+2] = this->cache[address].substr(74, 32); // data3
-            this->ram[ram_address+3] = this->cache[address].substr(106, 32); // data4
-            this->cycles = this->cycles + 12; // (4 * 3) = 12 cycles for 4 memory accesses
+    if(mode == 1){ // cache mode
+        if(this->cache[address][9] == '0'){ // checking valid bit - invalid case. Can just write as it's empty.
+            this->cache[address] = memory::cache_write(tag, index, offset, dirty, valid, data, address);
+            cycles++;
         }
-        this->cache[address] = memory::cache_write(tag, index, offset, dirty, valid, data, address);
-        this->cycles++; // +1 for cache access
+        else if(this->cache[address][9] == '1'){ // checking valid bit - valid case. Need to do additional checks as it's been written to before
+            if(this->cache[address][8] == '1'){ // check dirty bit, if 1 then need to write back to ram before writing to cache
+                // write back all 4 words in cache line to memory
+                int ram_address = memory::binary_int( stoll(this->cache[address].substr(0,2) + index + offset) );
+                this->ram[ram_address] = this->cache[address].substr(10, 32); // data1
+                this->ram[ram_address+1] = this->cache[address].substr(42, 32); // data2
+                this->ram[ram_address+2] = this->cache[address].substr(74, 32); // data3
+                this->ram[ram_address+3] = this->cache[address].substr(106, 32); // data4
+                this->cycles = this->cycles + 12; // (4 * 3) = 12 cycles for 4 memory accesses
+            }
+            this->cache[address] = memory::cache_write(tag, index, offset, dirty, valid, data, address);
+            this->cycles++; // +1 for cache access
+        }
+    }
+    else{ // no cache mode, just write to main memory
+        int ram_address = memory::binary_int( stoll(tag + index + offset) ); // index of array of ram we need to write to (address we're writing to)
+        this->ram[ram_address] = data; // write
+        this->cycles = this->cycles + 3; // 3 cycles for ram write
     }
 
     cout << "cycle count: " << this->cycles << endl; // after every write print the # of cycles
@@ -133,7 +140,7 @@ string memory::view(string addr, string memLvl){ //prints the tag, index, and of
     }
 }
 
-string memory::read(string addr){ //respond with "wait" or "done" and return stored value
+string memory::read(string addr, int mode){ //respond with "wait" or "done" and return stored value
     if(addr.size() != 8){ // address size must be 8
         cout << "incorrect parameter format passed to read. Try again!" << endl;
         return 0;
@@ -147,43 +154,50 @@ string memory::read(string addr){ //respond with "wait" or "done" and return sto
 	string dirty = cache[cache_address].substr(8, 1);
 	string valid = cache[cache_address].substr(9, 1);
 
-    if(valid == "0") {
-        int ram_address = memory::binary_int( stoll( tag + index + "00" ) );
-        string new_write = tag + index + offset + dirty + "1" + this->ram[ram_address] + this->ram[ram_address+1] + this->ram[ram_address+2] + this->ram[ram_address+3];
-        this->cache[cache_address] = new_write;
-    }
-
-    string line = this->cache[cache_address]; // the line of cache we want to initially look at (matches index)
-    this->cycles++;
-    if(tag == line.substr(0, 2)){ // found the index in the cache, now make sure the tags equal. if so, CACHE HIT
-        if(offset == "00") //if offset is 00, get first piece of data (word) in line
-            data = line.substr(10, 32);
-        else if(offset == "01") //if offset is 01, get second piece of data (word) in line
-            data = line.substr(42, 32);
-        else if(offset == "10") //if offset is 10, get third piece of data (word) in line
-            data = line.substr(74, 32);
-        else if(offset == "11") //if offset is 11, get fourth piece of data (word) in line
-            data = line.substr(106, 32);
-        else //offset is warped
-            return "In read - cache hit but offset is NOT CORRECT";
-        return data; // cache hit, return data
-    }
-
-    else{ //else the tags didn't equal, so we have a CACHE MISS
-        //find the piece of data we want to read in main memory
-        int ram_address = memory::binary_int( stoll( tag + index + offset ) );
-        string dirty = "0";
-        string valid = "1";
-        string old_tag = this->cache[cache_address].substr(0, 2);
-        int old_ram_address = memory::binary_int(stoll(old_tag + index + "00"));
-        for(int i = 0; i < 4; i++){ // write back to ram
-            this->ram[old_ram_address + i] = this->cache[cache_address].substr(10 + (32 * i), 32);
+    if(mode == 1){ // use the cache
+        if(valid == "0") {
+            int ram_address = memory::binary_int( stoll( tag + index + "00" ) );
+            string new_write = tag + index + offset + dirty + "1" + this->ram[ram_address] + this->ram[ram_address+1] + this->ram[ram_address+2] + this->ram[ram_address+3];
+            this->cache[cache_address] = new_write;
         }
-        this->cache[cache_address] = memory::cache_write(tag, index, offset, dirty, valid, this->ram[ram_address], cache_address);
-        this->cycles = this->cycles + 13;
 
-        cout << "cycle count: " << this->cycles << endl; // after every read print the # of cycles
-        return this->ram[ram_address]; // return data we just pulled from ram
+        string line = this->cache[cache_address]; // the line of cache we want to initially look at (matches index)
+        this->cycles++;
+        if(tag == line.substr(0, 2)){ // found the index in the cache, now make sure the tags equal. if so, CACHE HIT
+            if(offset == "00") //if offset is 00, get first piece of data (word) in line
+                data = line.substr(10, 32);
+            else if(offset == "01") //if offset is 01, get second piece of data (word) in line
+                data = line.substr(42, 32);
+            else if(offset == "10") //if offset is 10, get third piece of data (word) in line
+                data = line.substr(74, 32);
+            else if(offset == "11") //if offset is 11, get fourth piece of data (word) in line
+                data = line.substr(106, 32);
+            else //offset is warped
+                return "In read - cache hit but offset is NOT CORRECT";
+            return data; // cache hit, return data
+        }
+
+        else{ //else the tags didn't equal, so we have a CACHE MISS
+            //find the piece of data we want to read in main memory
+            int ram_address = memory::binary_int( stoll( tag + index + offset ) );
+            string dirty = "0";
+            string valid = "1";
+            string old_tag = this->cache[cache_address].substr(0, 2);
+            int old_ram_address = memory::binary_int(stoll(old_tag + index + "00"));
+            for(int i = 0; i < 4; i++){ // write back to ram
+                this->ram[old_ram_address + i] = this->cache[cache_address].substr(10 + (32 * i), 32);
+            }
+            this->cache[cache_address] = memory::cache_write(tag, index, offset, dirty, valid, this->ram[ram_address], cache_address);
+            this->cycles = this->cycles + 13;
+
+            cout << "cycle count: " << this->cycles << endl; // after every read print the # of cycles
+            return this->ram[ram_address]; // return data we just pulled from ram
+        }
+    }
+
+    else{ // don't use the cache. simply pull from ram
+        int ram_address = memory::binary_int( stoll( tag + index + offset ) );
+        return this->ram[ram_address];
     }
 
 }

@@ -17,9 +17,9 @@ class memory{
 		int get_cycles();
 		int binary_int(long long n);
 		string cache_write(string tag, string index, string offset, string dirty, string valid, string data, int cache_address);
-		int write(string addr, string data);
+		int write(string addr, string data, int mode);
 		string view(string addr, string memLvl);
-		string read(string addr);
+		string read(string addr, int mode);
 	};
 
 #endif

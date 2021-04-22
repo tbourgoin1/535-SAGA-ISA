@@ -11,6 +11,7 @@ using namespace std;
 memory global_mem;
 int global_pc = 0;
 string global_cmp = ""; // dedicated register that holds result of a CMP for future instructions
+bool use_cache;
 
 struct to_return{ // used to return from each stage
     string ins_type;
@@ -102,7 +103,8 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
                 rn = temp.substr(24, 8); // changes rn for use in memory_pipe
             }
             int prev_cycles = mem.get_cycles();
-            data = mem.read(rn); // get value we want from memory
+            if(use_cache){ data = mem.read(rn, 1); } // get value we want from memory, cache mode
+            else{ data = mem.read(rn, 0); } // get value we want from memory, no cache mode
             for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
                 cout << "memory stalled, LD read" << endl;
                // Sleep(300); // read stall   
@@ -119,7 +121,8 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
             data = reg[mem.binary_int( stoll(rd) )]; // get the data we want to store in memory from the right register
             int prev_cycles = mem.get_cycles();
             cout << "\n\n\n\nrn: " << rn << endl; 
-            mem.write(rn, data); // write the value we got from the register to memory
+            if(use_cache) { mem.write(rn, data, 1); } // write the value we got from the register to memory with cache
+            else{ mem.write(rn, data, 0); } // write the value we got from the register to memory with no cache
             global_mem = mem;
             for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
             }
@@ -598,7 +601,9 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
 to_return fetch(int pc, memory mem, string reg[]) {
     string instruction_addr = int_to_binary(pc);
     int prev_cycles = mem.get_cycles();
-    string instruction = mem.read(instruction_addr);
+    string instruction;
+    if(use_cache){ instruction = mem.read(instruction_addr, 1); } // get instruction we want from memory, cache mode
+    else{ instruction = mem.read(instruction_addr, 0); } // get instruction we want from memory, no cache mode
     cout << "FETCH READ STALL" << endl;
    // Sleep(300); // read stall
     int current_cycles = mem.get_cycles();
@@ -617,7 +622,7 @@ to_return fetch(int pc, memory mem, string reg[]) {
     return me;
 }
 
-void single_instruction_pipe_with_cache(vector<vector<string>> instructs, string reg[], int pc_limit){
+void single_instruction_pipe(vector<vector<string>> instructs, string reg[], int pc_limit){
     to_return ret_val;
     vector<string> new_ins;
     while(!instructs.empty()){ // until we run out of instructions
@@ -664,7 +669,7 @@ void single_instruction_pipe_with_cache(vector<vector<string>> instructs, string
     }
 }
 
-void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mode, string reg[], int pc_limit){
+void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string reg[], int pc_limit){
     to_return ret_val;
     vector<string> new_ins;
     while(!instructs.empty()){ // until we run out of instructions
@@ -714,7 +719,7 @@ void concurrent_pipe_with_cache(vector<vector<string>> instructs, bool hazard_mo
                                     j = j - 1; // adjust since we deleted a member of the vector
                                 }
                             }
-                            concurrent_pipe_with_cache(hazard_instructs, true, reg, pc_limit); // execute those blocking instructions only to completion
+                            concurrent_pipe(hazard_instructs, true, reg, pc_limit); // execute those blocking instructions only to completion
                             break; // now that we've found a blocking ins and executed it, stop the loop. Continue with the instructions we have in the original vector  
                         }
                     }
@@ -776,19 +781,37 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
+    //decide whether to use cache or not
+    cout << "\nUse cache? y/n" << endl;
+    string cache_mode;
+    while(1){
+        cin >> cache_mode;
+        if(cache_mode == "n"){
+            use_cache = false;
+            break;
+        }
+        if(cache_mode == "y"){
+            use_cache = true;
+            break;
+        }
+        else{
+            cout << "Incorrect input, try again!" << endl;
+        }
+    }
+    
     int pc_limit = 0;
     // any values that need to be written to memory (or other commands) before the instructions start executing (for LDs, for example)
     while(getline(file_reader, command)){ // read in all memory writes, reads, or views in binary from file
         if(command.substr(0, 1) == "w"){ //  write something to memory
             string param1 = command.substr(2, 8); // addr for write
             string param2 = command.substr(11, 32); // data for write
-            cout << "HERE" << endl;
-            global_mem.write(param1, param2);
-            cout << "HERE" << endl;
+            if(use_cache) { global_mem.write(param1, param2, 1); } // write setup val to mem with cache
+            else{ global_mem.write(param1, param2, 0); } // write setup val to mem with no cache
         }
         else if(command.substr(0, 1) == "r"){ // read from memory
             string param1 = command.substr(2, 8); // addr for read
-            cout << "read returned: \n" << global_mem.read(param1) << endl;
+            if(use_cache){ cout << "read returned: \n" << global_mem.read(param1, 1) << endl; } // read setup val from mem with cache
+            else{ cout << "read returned: \n" << global_mem.read(param1, 0) << endl; } // read setup val from mem with no cache
         }
         else if(command.substr(0, 1) == "v"){ // view memory
             string param1 = command.substr(2, 8); // addr for view
@@ -804,7 +827,8 @@ int main(int argc, char *argv[]){
     cout << "instruction list size: " << binary_ins_list.size() << endl;
     for(int i = 0; i < binary_ins_list.size(); i++){
         cout << "addr: " << int_to_binary(i) << "\ndata: " << binary_ins_list[i] << endl;
-        global_mem.write(int_to_binary(i), binary_ins_list[i]);
+        if(use_cache) { global_mem.write(int_to_binary(i), binary_ins_list[i], 1); } // write ins to memory with cache
+        else{ global_mem.write(int_to_binary(i), binary_ins_list[i], 0); } // write ins to memory without cache
         pc_limit++;
     }
 
@@ -813,27 +837,21 @@ int main(int argc, char *argv[]){
     vector<vector<string>> instructs; // string ins_type, string instruction, string data, string rn, string rd, string shifter. mem, reg[], and pc are added manually when ins actually called
     vector<string> new_ins = {"F", "", "", "", "", "", "", "", ""}; // used throughout to add new instructions
     instructs.push_back(new_ins); // first fetch instruction params now in instructs vector
-    cout << "Please enter which mode you would like to execute the pipeline in:\n00 = no cache, no pipe\n01 = no cache, yes pipe\n10 = yes cache, no pipe\n11 = yes cache, yes pipe" << endl;
+    cout << "Use the pipeline? y/n" << endl;
     string run_mode;
     chrono::system_clock::time_point start; // start of function execution time
+    // first bit is cache option, second is pipe option
+    // 0 = no, 1 = yes
     while(1){
         cin >> run_mode;
-        if(run_mode == "00"){
-            cout << "Mode not supported yet, exiting..." << endl;
-            break;
-        }
-        if(run_mode == "01"){
-            cout << "Mode not supported yet, exiting..." << endl;
-            break;
-        }
-        if(run_mode == "10"){
+        if(run_mode == "n"){
             start = chrono::system_clock::now();
-            single_instruction_pipe_with_cache(instructs, reg, pc_limit); // execute single threaded pipeline with cache
+            single_instruction_pipe(instructs, reg, pc_limit); // execute single threaded pipeline
             break;
         }
-        if(run_mode == "11"){
+        if(run_mode == "y"){
             start = chrono::system_clock::now();
-            concurrent_pipe_with_cache(instructs, false, reg, pc_limit); // execute multithreaded pipeline with cache
+            concurrent_pipe(instructs, false, reg, pc_limit); // execute multithreaded pipeline
             break;
         }
         else{
@@ -845,15 +863,15 @@ int main(int argc, char *argv[]){
     
     cout << "\n\n\nFULL CACHE PRINT:" << endl;
     for(int i = 0; i < 16; i++){
-        cout << global_mem.get_cache()[i] << endl;
+        cout << "cache position #" << i << ": " << global_mem.get_cache()[i] << endl;
     }
     cout << "\n\n\nFULL RAM PRINT:" << endl;
     for(int i = 0; i < 256; i++){
-        cout << global_mem.get_ram()[i] << endl;
+        cout << "ram position #" << i << ": " << global_mem.get_ram()[i] << endl;
     }
 
-    cout << "\n\n\nRAM[24] - RAM[53] PRINT (FOR EXCHANGE SORT BENCHMARK):" << endl;
-    for(int i = 24; i < 54; i++){
+    cout << "\n\n\nRAM[24] - RAM[54] PRINT (FOR EXCHANGE SORT BENCHMARK):" << endl;
+    for(int i = 24; i < 55; i++){
         cout << global_mem.get_ram()[i] << endl;
     }
     
