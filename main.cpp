@@ -674,7 +674,24 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
     vector<string> new_ins;
     while(!instructs.empty()){ // until we run out of instructions
         int cur_pipe_size = instructs.size();
+        /*cout << "\n\n\n\n\n" << endl;
+        cout << "REGISTER 0: " << reg[0] << endl;
+        cout << "REGISTER 1: " << reg[1] << endl;
+        cout << "REGISTER 2: " << reg[2] << endl;
+        cout << "REGISTER 3: " << reg[3] << endl;
+        cout << "REGISTER 4: " << reg[4] << endl;
+        cout << "REGISTER 5: " << reg[5] << endl;
+        cout << "REGISTER 6: " << reg[6] << endl;
+        cout << "REGISTER 7: " << reg[7] << endl;
+        cout << "REGISTER 8: " << reg[8] << endl;
+        cout << "REGISTER 9: " << reg[9] << endl;
+        cout << "REGISTER 10: " << reg[10] << endl;
         cout << "CURRENT PC: " << global_pc << endl;
+
+        if(reg[9] == "00000000000000000000000011000001"){
+            exit(1);
+        }*/
+
         for(int i = 0; i < cur_pipe_size; i++){ // look at each of the instructions in the pipe
         cout << "pipe size: " << instructs.size() << endl;
         cout << instructs[0][0] << instructs[0][1] << instructs[0][2] << instructs[0][3] << instructs[0][4] << instructs[0][5] << instructs[0][6] << endl;
@@ -695,7 +712,7 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
                         if(instructs[i][1] == "CMP") { check_rd = false; } // these instructions don't use rd so we shouldn't check it for data hazard
                         if(instructs[i][1] == "MOV") { check_rn = false; } // these instructions don't use rn so we shouldn't check it for data hazard
                         if(instructs[i][1] == "B") { check_rn, check_rd, check_shifter = false; } // these instructions don't need data hazard checks
-                        // compare rn, rd, and shifter to see if we're going to use the same ones in the future that the current ins that just decoded uses - HAZARD IF SO
+                        //compare rn, rd, and shifter to see if we're going to use the same ones in the future that the current ins that just decoded uses - HAZARD IF SO
                         if(check_rn){
                             if(ret_val.rn == instructs[i][3] || ret_val.rn == instructs[i][4] || ret_val.rn == instructs[i][5].substr(0, 4)) {need_to_squash = true;}
                         }
