@@ -83,8 +83,22 @@ vector<string> assembler::translate_instructions(vector<vector<string>> inst_lis
 
         string operation = inst_list[i][0];
         string scan;
-        if(operation.size() > 3){
+        cout << "\n\n\n\nOPERATION: " << operation << endl;
+        if(operation.size() == 5){
+            scan = operation.substr(operation.size()-2, 2);
+            if(scan == "EQ" || scan == "LT" || scan == "GT"){
+                operation = operation.substr(0, operation.size()-2);
+                if(scan == "EQ")
+                    cond = "0001";
+                else if(scan == "LT")
+                    cond = "0011";
+                else if(scan == "GT")
+                    cond = "0101";
+            }
+        }
+        else if(operation.size() > 3){
             scan = operation.substr(operation.size()-3, 3);
+            cout << "SCAN: " << scan << endl;
             if(scan == "NEQ" || scan == "LTE" || scan == "GTE"){
                 operation = operation.substr(0, operation.size()-3);
                 if(scan == "NEQ")

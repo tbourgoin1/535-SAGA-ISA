@@ -120,13 +120,17 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
             }
             data = reg[mem.binary_int( stoll(rd) )]; // get the data we want to store in memory from the right register
             int prev_cycles = mem.get_cycles();
+            if(data.length() == 33){
+                data = data.substr(1, 32);
+            }
             cout << "\n\n\n\nrn: " << rn << endl; 
+            cout << "data: " << data << endl;
             if(use_cache) { mem.write(rn, data, 1); } // write the value we got from the register to memory with cache
             else{ mem.write(rn, data, 0); } // write the value we got from the register to memory with no cache
             global_mem = mem;
             for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
+                cout << "memory stalled, STR write" << endl;
             }
-            cout << "memory stalled, STR write" << endl;
            // Sleep(300); // write stall
         }
     }
@@ -781,6 +785,26 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
         if(instructs.size() < 5 && pc_limit - global_pc > 0 && !hazard_mode){ // pipe isn't full, add there IS a next instruction to add. so add it
             new_ins = {"F", "", "", "", "", "", "", "", ""}; 
             instructs.push_back(new_ins);
+            cout << "\n\n\n\n\n" << endl;
+            cout << "REGISTER 0: " << reg[0] << endl;
+            cout << "REGISTER 1: " << reg[1] << endl;
+            cout << "REGISTER 2: " << reg[2] << endl;
+            cout << "REGISTER 3: " << reg[3] << endl;
+            cout << "REGISTER 4: " << reg[4] << endl;
+            cout << "REGISTER 5: " << reg[5] << endl;
+            cout << "REGISTER 6: " << reg[6] << endl;
+            cout << "REGISTER 7: " << reg[7] << endl;
+            cout << "REGISTER 8: " << reg[8] << endl;
+            cout << "REGISTER 9: " << reg[9] << endl;
+            cout << "REGISTER 10: " << reg[10] << endl;
+
+            cout << "\n\n\nRAM[24] - RAM[54] PRINT (FOR EXCHANGE SORT BENCHMARK):" << endl;
+            for(int i = 24; i < 55; i++){
+                cout << global_mem.get_ram()[i] << endl;
+            }
+            cout << "CURRENT PC: " << global_pc << endl;
+            string x;
+           // cin >> x;
         }
         string x;
        // cin >> x;
@@ -847,6 +871,15 @@ int main(int argc, char *argv[]){
         if(use_cache) { global_mem.write(int_to_binary(i), binary_ins_list[i], 1); } // write ins to memory with cache
         else{ global_mem.write(int_to_binary(i), binary_ins_list[i], 0); } // write ins to memory without cache
         pc_limit++;
+    }
+
+    cout << "\n\n\nFULL CACHE PRINT:" << endl;
+    for(int i = 0; i < 16; i++){
+        cout << "cache position #" << i << ": " << global_mem.get_cache()[i] << endl;
+    }
+    cout << "\n\n\nFULL RAM PRINT:" << endl;
+    for(int i = 0; i < 256; i++){
+        cout << "ram position #" << i << ": " << global_mem.get_ram()[i] << endl;
     }
 
     
