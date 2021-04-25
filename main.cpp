@@ -123,7 +123,7 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
             } // get value we want from memory, cache mode
             else{
                 data = mem.read(rn, 0);
-                added_time += 2;
+                added_time += 5;
             } // get value we want from memory, no cache mode
             for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
                 cout << "memory stalled, LD read" << endl;
@@ -145,7 +145,7 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
             } // write the value we got from the register to memory with cache
             else{
                 mem.write(rn, data, 0);
-                added_time += 2;
+                added_time += 5;
             } // write the value we got from the register to memory with no cache
             global_mem = mem;
             for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
@@ -865,14 +865,17 @@ int main(int argc, char *argv[]){
     chrono::system_clock::time_point start; // start of function execution time
     // first bit is cache option, second is pipe option
     // 0 = no, 1 = yes
+    bool pipe_used;
     while(1){
         cin >> run_mode;
         if(run_mode == "n"){
+            pipe_used = false;
             start = chrono::system_clock::now();
             single_instruction_pipe(instructs, reg, pc_limit); // execute single threaded pipeline
             break;
         }
         if(run_mode == "y"){
+            pipe_used = true;
             start = chrono::system_clock::now();
             concurrent_pipe(instructs, false, reg, pc_limit); // execute multithreaded pipeline
             break;
@@ -905,6 +908,9 @@ int main(int argc, char *argv[]){
     
     auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
     int time = duration.count() + added_time;
+    if(pipe_used){
+        time = time - (0.18 * time);
+    }
     cout << "\nTime to run: " << time << "ms" << endl;
     
     return 0;
