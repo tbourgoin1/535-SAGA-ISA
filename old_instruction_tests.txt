@@ -426,12 +426,15 @@
     r9 = changes, has memory address of current index we want for inner loop
     
     EXCHANGE SORT ASSEMBLER FORMAT + PROGRAM SETUP (w/ explanation)
-    LD r8, m23 // loads offset to beginning of array (24) for sort into r8: 0
-    LD r1, m22 // loads size of array (30) into r1: 1
+    LD r8, m57 // loads offset to beginning of array (24) for sort into r8: 0
+    LD r1, m56 // loads size of array (30) into r1: 1
+
     ADD r4, r4, #0 // set outer counter to 0: 2
     SUB r5, r1, #2 // set outer loop limit to (size of array - 2): 3
+
     ADD r6, r6, #0 // set inner counter to 0, BRANCH TO HERE FOR TOP OF OUTER LOOP: 4
     SUB r7, r5, r4 // set inner loop limit to (size of array - 2 - outer counter): 5
+
     CMP r6, r7 // compare inner counter to inner loop limit, BRANCH TO HERE FOR TOP OF INNER LOOP: 6
     BGT m19 // branch to the end of the inner loop if greater than, we're done with this inner loop: 7
     ADD r9, r6, r8 // add inner counter and mem offset, r9 has int val of memory location with array value we need: 8
@@ -445,14 +448,12 @@
     SUB r9, r9, #1 // if r2 > r3, decrement r9 back to r2's original memory location: 16
     STR r3, r9 // if r2 > r3, store r3 where r2 was in memory. Now these 2 values are in the right order.: 17
     B m6 // repeat inner loop iteration for next two array values: 18
+
     ADD r4, r4, #1 // increment counter of outer loop. BRANCH HERE FOR THE END OF INNER LOOP, FIRST INS AFTER END: 19
     CMP r4, r5 // compare outer loop limit and counter: 20
     BLTE m4 // repeat if the counter is <= the limit: 21
 
-    w 00010110 00000000000000000000000000011110 // WRITE 30 (size of array) TO memory: 22
-    w 00010111 00000000000000000000000000011000 // WRITE 24 (# of instructions + # of writes for program setup) to memory: 23
-    // write all 30 array values to memory locations 24 - 53
-    w 00011000 00000000000110000000000000011000 // 24
+    // write all 30 array values to memory locations 25 - 55
     w 00011001 00000000000000000000000000011011 // 25
     w 00011010 00000000000000000000000000011111 // 26
     w 00011011 00110000000000000000000000011000 // 27
@@ -484,13 +485,17 @@
     w 00110101 01000000000000001010000000000000 // 53
     w 00110110 01100000000000001010000000000011 // 54
 
+    w 00110111 00000000000110000000000000011000 // 55
+    w 00111000 00000000000000000000000000011110 // WRITE 30 (size of array) TO memory: 56
+    w 00111001 00000000000000000000000000011001 // WRITE 25 (# of instructions + # of writes for program setup) to memory: 57
+
 
 
 
     
     ASSEMBLER INSTRUCTIONS AND PROGRAM SETUP IN FILE FORMAT:
-    LD r8, m23
-    LD r1, m22
+    LD r8, m57
+    LD r1, m56
     ADD r4, #0, #0
     SUB r5, r1, #1
     ADD r6, #0, #0
@@ -512,9 +517,6 @@
     CMP r4, r5
     BLTE m4
 
-    w 00010110 00000000000000000000000000011110
-    w 00010111 00000000000000000000000000011000
-    w 00011000 00000000000000000000000000011000
     w 00011001 00000000000000000000000000011011
     w 00011010 00000000000000000000000000011111
     w 00011011 00000000000000000000000000011000
@@ -545,6 +547,9 @@
     w 00110100 00000000000000001010000000000011
     w 00110101 00000000000000001010000000000000
     w 00110110 00000000000000001010000000000011
+    w 00110111 00000000000110000000000000011000
+    w 00111000 00000000000000000000000000011110
+    w 00111001 00000000000000000000000000011000
 
     
     

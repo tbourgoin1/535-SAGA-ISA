@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include <windows.h> //for Sleep
 #include <fstream> // read text file for commands
 #include <vector>
 #include <chrono> // for time of exeuction
@@ -12,6 +11,7 @@ memory global_mem;
 int global_pc = 0;
 string global_cmp = ""; // dedicated register that holds result of a CMP for future instructions
 bool use_cache;
+int added_time = 0;
 
 struct to_return{ // used to return from each stage
     string ins_type;
@@ -117,11 +117,16 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
                 rn = temp.substr(24, 8); // changes rn for use in memory_pipe
             }
             int prev_cycles = mem.get_cycles();
-            if(use_cache){ data = mem.read(rn, 1); } // get value we want from memory, cache mode
-            else{ data = mem.read(rn, 0); } // get value we want from memory, no cache mode
+            if(use_cache){ 
+                data = mem.read(rn, 1); 
+                added_time += 1;
+            } // get value we want from memory, cache mode
+            else{
+                data = mem.read(rn, 0);
+                added_time += 2;
+            } // get value we want from memory, no cache mode
             for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
                 cout << "memory stalled, LD read" << endl;
-               // Sleep(300); // read stall   
             }
         }
     }
@@ -134,13 +139,18 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
             }
             data = reg[mem.binary_int( stoll(rd) )]; // get the data we want to store in memory from the right register
             int prev_cycles = mem.get_cycles();
-            if(use_cache) { mem.write(rn, data, 1); } // write the value we got from the register to memory with cache
-            else{ mem.write(rn, data, 0); } // write the value we got from the register to memory with no cache
+            if(use_cache) {
+                mem.write(rn, data, 1); 
+                added_time += 1;
+            } // write the value we got from the register to memory with cache
+            else{
+                mem.write(rn, data, 0);
+                added_time += 2;
+            } // write the value we got from the register to memory with no cache
             global_mem = mem;
             for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
                 cout << "memory stalled, STR write" << endl;
             }
-           // Sleep(300); // write stall
         }
     }
 
@@ -604,7 +614,6 @@ to_return fetch(int pc, memory mem, string reg[]) {
     if(use_cache){ instruction = mem.read(instruction_addr, 1); } // get instruction we want from memory, cache mode
     else{ instruction = mem.read(instruction_addr, 0); } // get instruction we want from memory, no cache mode
     cout << "FETCH READ STALL" << endl;
-   // Sleep(300); // read stall
     int current_cycles = mem.get_cycles();
     pc++;
     global_pc = pc;
@@ -884,8 +893,8 @@ int main(int argc, char *argv[]){
         cout << "ram position #" << i << ": " << global_mem.get_ram()[i] << endl;
     }
 
-    cout << "\n\n\nRAM[24] - RAM[54] PRINT (FOR EXCHANGE SORT BENCHMARK):" << endl;
-    for(int i = 24; i < 55; i++){
+    cout << "\n\n\nRAM[25] - RAM[55] PRINT (FOR EXCHANGE SORT BENCHMARK):" << endl;
+    for(int i = 25; i < 56; i++){
         cout << global_mem.get_ram()[i] << endl;
     }
 
@@ -895,7 +904,8 @@ int main(int argc, char *argv[]){
     } 
     
     auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-    cout << "\nTime to run: " << duration.count() << "ms" << endl;
+    int time = duration.count() + added_time;
+    cout << "\nTime to run: " << time << "ms" << endl;
     
     return 0;
 }

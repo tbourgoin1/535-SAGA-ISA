@@ -82,12 +82,14 @@ int memory::write(string addr, string data, int mode){ //respond with "wait" or 
             }
             this->cache[address] = memory::cache_write(tag, index, offset, dirty, valid, data, address);
             this->cycles++; // +1 for cache access
+            cout << "cache write/eviction/memory write back stall" << endl;
         }
     }
     else{ // no cache mode, just write to main memory
         int ram_address = memory::binary_int( stoll(tag + index + offset) ); // index of array of ram we need to write to (address we're writing to)
         this->ram[ram_address] = data; // write
         this->cycles = this->cycles + 3; // 3 cycles for ram write
+        cout << "RAM write no cache mode stall" << endl;
     }
 
     cout << "cycle count: " << this->cycles << endl; // after every write print the # of cycles
@@ -191,12 +193,14 @@ string memory::read(string addr, int mode){ //respond with "wait" or "done" and 
             this->cycles = this->cycles + 13;
 
             cout << "cycle count: " << this->cycles << endl; // after every read print the # of cycles
+            cout << "read cache miss stall" << endl;
             return this->ram[ram_address]; // return data we just pulled from ram
         }
     }
 
     else{ // don't use the cache. simply pull from ram
         int ram_address = memory::binary_int( stoll( tag + index + offset ) );
+        cout << "read main memory no cache stall" << endl;
         return this->ram[ram_address];
     }
 
