@@ -565,9 +565,9 @@
 
 
     inner inner, inner and outer loop
-        LD r0, m34 // load length of matrix 1 rows into r0. assumes is square matrix. acts as outer count limit (8), 0
-        LD r1, m35 // load length of matrix 2 columns into r0. assumes is square matrix. acts as inner count limit (8), 1
-        LD r8, m36 // load offset of instructions + program setup (points to first member of matrix 1), 2
+        LD r0, m167 // load length of matrix 1 rows into r0. assumes is square matrix. acts as outer count limit (8), 0
+        LD r1, m168 // load length of matrix 2 columns into r0. assumes is square matrix. acts as inner count limit (8), 1
+        LD r8, m169 // load offset of instructions + program setup (points to first member of matrix 1), 2
         LD r9, m165 // load total size of matrix 1 for matrix 2 offset (64), 3
         LD r12, m166 // load start of where we can store new matrix, 4
         ADD r2, #0, #0 // initialize outer iteration counter to 0, 5
@@ -605,10 +605,6 @@
         B m14 // else branch back to the start of inner inner loop, 32
     END OF PROGRAM
         ADDLTE r15, #0, #0 // dummy instruction for end of program, 33
-
-    w 00100010 00000000000000000000000000001000 // WRITE SIZE OF MATRIX 1 (8) TO MEMORY, 34
-    w 00100011 00000000000000000000000000001000 // WRITE SIZE OF MATRIX 2 (8) TO MEMORY, 35
-    w 00100100 00000000000000000000000000100101 // WRITE OFFSET OF INSTRUCTIONS/PROGRAM SETUP (37) TO MEMORY, 36
 
     w 00100101 00000000000000000000000000001000 // matrix 1 index 0, 37
     w 00100110 00000000000000000000000000001010 // matrix 1 index 1, 38
@@ -741,7 +737,11 @@
     w 10100100 00000000000000000000000000001110 //  matrix 2 index 63, 164
 
     w 10100101 00000000000000000000000001000000 // WRITE SIZE OF MATRIX 1 TO MEMORY (64), 165
-    w 10100110 00000000000000000000000010100111 // WRITE BEGINNING OF WHERE WE CAN WRITE NEW MATRIX TO MEMORY (167) TO MEMORY, 166
+    w 10100110 00000000000000000000000010101010 // WRITE BEGINNING OF WHERE WE CAN WRITE NEW MATRIX TO MEMORY (171) TO MEMORY, 166
+
+    w 10100111 00000000000000000000000000001000 // WRITE SIZE OF MATRIX 1 (8) TO MEMORY, 167
+    w 10101000 00000000000000000000000000001000 // WRITE SIZE OF MATRIX 2 (8) TO MEMORY, 168
+    w 10101001 00000000000000000000000000100101 // WRITE OFFSET OF INSTRUCTIONS/PROGRAM SETUP (37) TO MEMORY, 169
 
     
     
@@ -754,9 +754,9 @@
 
 
     PROPER INSTRUCTION FORMAT
-    LD r0, m34
-    LD r1, m35
-    LD r8, m36
+    LD r0, m167
+    LD r1, m168
+    LD r8, m169
     LD r9, m165
     LD r12, m166
     ADD r2, #0, #0
@@ -787,12 +787,8 @@
     ADDGT r3, r3, #1
     BGT m9
     B m14
-    ADDLTE r15, #0, #0
 
     PROPER PROGRAM SETUP FORMAT:
-    w 00100010 00000000000000000000000000001000
-    w 00100011 00000000000000000000000000001000
-    w 00100100 00000000000000000000000000100101
     w 00100101 00000000000000000000000000001000
     w 00100110 00000000000000000000000000001010
     w 00100111 00000000000000000000000000001011
@@ -922,7 +918,10 @@
     w 10100011 00000000000000000000000000001100
     w 10100100 00000000000000000000000000001110
     w 10100101 00000000000000000000000001000000
-    w 10100110 00000000000000000000000010100111
+    w 10100110 00000000000000000000000010101010
+    w 10100111 00000000000000000000000000001000
+    w 10101000 00000000000000000000000000001000
+    w 10101001 00000000000000000000000000100101
 
 
     

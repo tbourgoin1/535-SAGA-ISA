@@ -25,19 +25,33 @@ struct to_return{ // used to return from each stage
     string s_bit;
 };
 
-string int_to_binary(int n) {
-    string r;
-    while(n!=0){
-        r=(n%2==0 ? "0":"1")+r; 
-        n/=2;
+string int_to_binary(int n, bool eight_bit) {
+    if(eight_bit){ // returns eight bit string
+        string r;
+        while(n!=0){
+            r=(n%2==0 ? "0":"1")+r; 
+            n/=2;
+        }
+        int fill = 8 - r.length();
+        string f = "";
+        for(int i = 0; i < fill; i++){
+            f = f + "0";
+        }
+        f = f + r;
+        return f;
     }
-    int fill = 8 - r.length();
-    string f = "";
-    for(int i = 0; i < fill; i++){
-        f = f + "0";
+
+    else{ // returns 32 bit string
+        unsigned int b = (unsigned int)n;
+        string binary = "";
+        unsigned int mask = 0x80000000u;
+        while (mask > 0)
+        {
+            binary += ((b & mask) == 0) ? '0' : '1';
+            mask >>= 1;
+        }
+        return binary;
     }
-    f = f + r;
-    return f;
 }
 
 bool cond_code_helper(string cond_code){ // returns false if global_cmp and cond code don't match up, true if they do
@@ -120,11 +134,6 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
             }
             data = reg[mem.binary_int( stoll(rd) )]; // get the data we want to store in memory from the right register
             int prev_cycles = mem.get_cycles();
-            if(data.length() == 33){
-                data = data.substr(1, 32);
-            }
-            cout << "\n\n\n\nrn: " << rn << endl; 
-            cout << "data: " << data << endl;
             if(use_cache) { mem.write(rn, data, 1); } // write the value we got from the register to memory with cache
             else{ mem.write(rn, data, 0); } // write the value we got from the register to memory with no cache
             global_mem = mem;
@@ -171,12 +180,7 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
                 op2 = mem.binary_int(stoll(reg[mem.binary_int( stoll(shifter.substr(0, 4)) )])); // gets second operand by converting the first 4 bits of shifter to an index for reg[] and converting result into int
             }
             int initial_result = op1 + op2;
-            if(initial_result >= 256){ // MAXIMUM OF 256 BECAUSE INT_TO_BINARY RETURNS 8 BIT RESULT, UNLESS WE CHANGE IT
-                initial_result = 256;
-                cout << "ADD AT MAX VALUE!!!! NEED TO CHANGE INT_TO_BINARY" << endl;
-            }
-            string eight_bit_result = int_to_binary(initial_result);
-            data = "000000000000000000000000" + eight_bit_result;
+            data = int_to_binary(initial_result, false);
         }
     }
 
@@ -194,16 +198,14 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
                 op2 = mem.binary_int( stoll(shifter.substr(0, 4)) );
             }
             else{ // else uses register
-                cout << reg[4] << endl;
                 op2 = mem.binary_int(stoll(reg[mem.binary_int( stoll(shifter.substr(0, 4)) )])); // gets second operand by converting the first 4 bits of shifter to an index for reg[] and converting result into int
             }
             int initial_result = op1 - op2;
-            if(initial_result <= 0){ // MAXIMUM OF 256 BECAUSE INT_TO_BINARY RETURNS 8 BIT RESULT, UNLESS WE CHANGE IT
+            if(initial_result <= 0){ // MIN OF 0
                 initial_result = 0;
                 cout << "SUB AT MIN VALUE OF 0!!!! STAYING AT 0" << endl;
             }
-            string eight_bit_result = int_to_binary(initial_result);
-            data = "000000000000000000000000" + eight_bit_result;
+            data = int_to_binary(initial_result, false);
         }
     }
 
@@ -224,12 +226,7 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
                 op2 = mem.binary_int(stoll(reg[mem.binary_int( stoll(shifter.substr(0, 4)) )])); // gets second operand by converting the first 4 bits of shifter to an index for reg[] and converting result into int
             }
             int initial_result = op1 * op2;
-            if(initial_result >= 256){ // MAXIMUM OF 256 BECAUSE INT_TO_BINARY RETURNS 8 BIT RESULT, UNLESS WE CHANGE IT
-                initial_result = 256;
-                cout << "MUL AT MAX VALUE!!!! NEED TO CHANGE INT_TO_BINARY" << endl;
-            }
-            string eight_bit_result = int_to_binary(initial_result);
-            data = "000000000000000000000000" + eight_bit_result;
+            data = int_to_binary(initial_result, false);
         }
     }
 
@@ -251,8 +248,7 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
             }
             if(op2 != 0){
                 int initial_result = op1 / op2;
-                string eight_bit_result = int_to_binary(initial_result);
-                data = "000000000000000000000000" + eight_bit_result;
+                data = int_to_binary(initial_result, false);
             }
             else{
                 cout << "DIVIDE BY 0, INVALID! DIV NOT CARRIED OUT, NO RESULT STORED" << endl;
@@ -279,8 +275,7 @@ to_return execute(string instruction, string rn, string rd, string shifter, stri
             }
             if(op2 != 0){
                 int initial_result = op1 % op2;
-                string eight_bit_result = int_to_binary(initial_result);
-                data = "000000000000000000000000" + eight_bit_result;
+                data = int_to_binary(initial_result, false);
             }
             else{
                 cout << "MOD BY 0, INVALID! MOD NOT CARRIED OUT, NO RESULT STORED" << endl;
@@ -603,7 +598,7 @@ to_return decode(string instruction, memory mem, string reg[], int pc) {
 }
 
 to_return fetch(int pc, memory mem, string reg[]) {
-    string instruction_addr = int_to_binary(pc);
+    string instruction_addr = int_to_binary(pc, true);
     int prev_cycles = mem.get_cycles();
     string instruction;
     if(use_cache){ instruction = mem.read(instruction_addr, 1); } // get instruction we want from memory, cache mode
@@ -678,23 +673,6 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
     vector<string> new_ins;
     while(!instructs.empty()){ // until we run out of instructions
         int cur_pipe_size = instructs.size();
-        /*cout << "\n\n\n\n\n" << endl;
-        cout << "REGISTER 0: " << reg[0] << endl;
-        cout << "REGISTER 1: " << reg[1] << endl;
-        cout << "REGISTER 2: " << reg[2] << endl;
-        cout << "REGISTER 3: " << reg[3] << endl;
-        cout << "REGISTER 4: " << reg[4] << endl;
-        cout << "REGISTER 5: " << reg[5] << endl;
-        cout << "REGISTER 6: " << reg[6] << endl;
-        cout << "REGISTER 7: " << reg[7] << endl;
-        cout << "REGISTER 8: " << reg[8] << endl;
-        cout << "REGISTER 9: " << reg[9] << endl;
-        cout << "REGISTER 10: " << reg[10] << endl;
-        cout << "CURRENT PC: " << global_pc << endl;
-
-        if(reg[9] == "00000000000000000000000011000001"){
-            exit(1);
-        }*/
 
         for(int i = 0; i < cur_pipe_size; i++){ // look at each of the instructions in the pipe
         cout << "pipe size: " << instructs.size() << endl;
@@ -717,14 +695,20 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
                         if(instructs[i][1] == "MOV") { check_rn = false; } // these instructions don't use rn so we shouldn't check it for data hazard
                         if(instructs[i][1] == "B") { check_rn, check_rd, check_shifter = false; } // these instructions don't need data hazard checks
                         //compare rn, rd, and shifter to see if we're going to use the same ones in the future that the current ins that just decoded uses - HAZARD IF SO
+                        string cur_rn = ret_val.rn;
+                        string cur_rd = ret_val.rd;
+                        string cur_shifter = ret_val.shifter.substr(0, 4);
+                        string other_rn = instructs[i][3];
+                        string other_rd = instructs[i][4];
+                        string other_shifter = instructs[i][5].substr(0, 4);
                         if(check_rn){
-                            if(ret_val.rn == instructs[i][3] || ret_val.rn == instructs[i][4] || ret_val.rn == instructs[i][5].substr(0, 4)) {need_to_squash = true;}
+                            if(cur_rn.compare(other_rn) == 0 || cur_rn.compare(other_rd) == 0 || cur_rn.compare(other_shifter) == 0) {need_to_squash = true;}
                         }
                         if(check_rd){
-                            if(ret_val.rd == instructs[i][3] || ret_val.rd == instructs[i][4] || ret_val.rd == instructs[i][5].substr(0, 4)) {need_to_squash = true;}
+                            if(cur_rd.compare(other_rn) == 0 || cur_rd.compare(other_rd) == 0 || cur_rd.compare(other_shifter) == 0) {need_to_squash = true;}
                         }
                         if(check_shifter){
-                            if(ret_val.shifter.substr(0, 4) == instructs[i][3], ret_val.shifter.substr(0, 4) == instructs[i][4], ret_val.shifter.substr(0, 4) == instructs[i][5].substr(0, 4)) {need_to_squash = true;}
+                            if(cur_shifter.compare(other_rn) == 0 || cur_shifter.compare(other_rd) == 0 || cur_shifter.compare(other_shifter) == 0) {need_to_squash = true;}
                         }  
                         if(need_to_squash){
                             cout << "DATA HAZARD OCCURRED, FINISHING BLOCKING INSTRUCTIONS AHEAD OF CURRENT AND HALTING CURRENT" << endl;
@@ -785,26 +769,6 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
         if(instructs.size() < 5 && pc_limit - global_pc > 0 && !hazard_mode){ // pipe isn't full, add there IS a next instruction to add. so add it
             new_ins = {"F", "", "", "", "", "", "", "", ""}; 
             instructs.push_back(new_ins);
-            cout << "\n\n\n\n\n" << endl;
-            cout << "REGISTER 0: " << reg[0] << endl;
-            cout << "REGISTER 1: " << reg[1] << endl;
-            cout << "REGISTER 2: " << reg[2] << endl;
-            cout << "REGISTER 3: " << reg[3] << endl;
-            cout << "REGISTER 4: " << reg[4] << endl;
-            cout << "REGISTER 5: " << reg[5] << endl;
-            cout << "REGISTER 6: " << reg[6] << endl;
-            cout << "REGISTER 7: " << reg[7] << endl;
-            cout << "REGISTER 8: " << reg[8] << endl;
-            cout << "REGISTER 9: " << reg[9] << endl;
-            cout << "REGISTER 10: " << reg[10] << endl;
-
-            cout << "\n\n\nRAM[24] - RAM[54] PRINT (FOR EXCHANGE SORT BENCHMARK):" << endl;
-            for(int i = 24; i < 55; i++){
-                cout << global_mem.get_ram()[i] << endl;
-            }
-            cout << "CURRENT PC: " << global_pc << endl;
-            string x;
-           // cin >> x;
         }
         string x;
        // cin >> x;
@@ -867,9 +831,9 @@ int main(int argc, char *argv[]){
     //LOOP THROUGH VECTOR, WRITE EACH INSTRUCTION TO MEMORY STARTING AT 00000000. COUNT UP PC_LIMIT PER WRITE
     cout << "instruction list size: " << binary_ins_list.size() << endl;
     for(int i = 0; i < binary_ins_list.size(); i++){
-        cout << "addr: " << int_to_binary(i) << "\ndata: " << binary_ins_list[i] << endl;
-        if(use_cache) { global_mem.write(int_to_binary(i), binary_ins_list[i], 1); } // write ins to memory with cache
-        else{ global_mem.write(int_to_binary(i), binary_ins_list[i], 0); } // write ins to memory without cache
+        cout << "addr: " << int_to_binary(i, true) << "\ndata: " << binary_ins_list[i] << endl;
+        if(use_cache) { global_mem.write(int_to_binary(i, true), binary_ins_list[i], 1); } // write ins to memory with cache
+        else{ global_mem.write(int_to_binary(i, true), binary_ins_list[i], 0); } // write ins to memory without cache
         pc_limit++;
     }
 
@@ -924,6 +888,11 @@ int main(int argc, char *argv[]){
     for(int i = 24; i < 55; i++){
         cout << global_mem.get_ram()[i] << endl;
     }
+
+    cout << "\n\n\nRAM[170] - RAM[250] PRINT (FOR MATRIX MULTIPLY BENCHMARK):" << endl;
+    for(int i = 170; i < 251; i++){
+        cout << global_mem.get_ram()[i] << endl;
+    } 
     
     auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
     cout << "\nTime to run: " << duration.count() << "ms" << endl;

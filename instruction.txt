@@ -1,6 +1,6 @@
-LD r0, m34
-LD r1, m35
-LD r8, m36
+LD r0, m167
+LD r1, m168
+LD r8, m169
 LD r9, m165
 LD r12, m166
 ADD r2, #0, #0
@@ -31,4 +31,3 @@ ADDGT r12, r12, #1
 ADDGT r3, r3, #1
 BGT m9
 B m14
-ADDLTE r0, #0, #0
