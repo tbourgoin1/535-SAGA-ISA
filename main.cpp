@@ -2,7 +2,6 @@
 #include <string>
 #include <fstream> // read text file for commands
 #include <vector>
-#include <chrono> // for time of exeuction
 #include "memory.h"
 #include "assembler.h"
 using namespace std;
@@ -12,6 +11,7 @@ int global_pc = 0;
 string global_cmp = ""; // dedicated register that holds result of a CMP for future instructions
 bool use_cache;
 int added_time = 0;
+int cycles; // additional cycles to be affected by the pipeline
 
 struct to_return{ // used to return from each stage
     string ins_type;
@@ -670,6 +670,7 @@ void single_instruction_pipe(vector<vector<string>> instructs, string reg[], int
                     new_ins = {"F", "", "", "", "", "", "", "", ""}; // now that the current instruction is done, add the next in
                     instructs.push_back(new_ins);
                 }
+                cycles+=5; // 1 cycle per stage, so when we're in writeback that's 5 for the current instruction
             }
         }
         string x;
@@ -691,6 +692,7 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
                 instructs.erase(instructs.begin()); // take out the instruction just used
                 new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code, ret_val.i_bit, ret_val.s_bit}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
+                cycles++;
             }
             else if(instructs[0][0] == "D"){ // DECODE CASE
                 ret_val = decode(instructs[0][1], global_mem, reg, global_pc); //  execute decode w/ instruction as first arg
@@ -773,6 +775,7 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
             else if(instructs[0][0] == "W"){ // WRITEBACK CASE
                 writeback(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][6], global_mem, reg, global_pc); //  execute writeback, no need for return val
                 instructs.erase(instructs.begin()); // take out the instruction just used
+                cycles++;
             }
         }
         if(instructs.size() < 5 && pc_limit - global_pc > 0 && !hazard_mode){ // pipe isn't full, add there IS a next instruction to add. so add it
@@ -863,7 +866,6 @@ int main(int argc, char *argv[]){
     instructs.push_back(new_ins); // first fetch instruction params now in instructs vector
     cout << "Use the pipeline? y/n" << endl;
     string run_mode;
-    chrono::system_clock::time_point start; // start of function execution time
     // first bit is cache option, second is pipe option
     // 0 = no, 1 = yes
 
@@ -873,13 +875,11 @@ int main(int argc, char *argv[]){
         cin >> run_mode;
         if(run_mode == "n"){
             pipe_used = false;
-            start = chrono::system_clock::now();
             single_instruction_pipe(instructs, reg, pc_limit); // execute single threaded pipeline
             break;
         }
         if(run_mode == "y"){
             pipe_used = true;
-            start = chrono::system_clock::now();
             concurrent_pipe(instructs, false, reg, pc_limit); // execute multithreaded pipeline
             break;
         }
@@ -887,8 +887,6 @@ int main(int argc, char *argv[]){
             cout << "Incorrect input, try again!" << endl;
         }
     }
-
-    chrono::system_clock::time_point end = chrono::system_clock::now(); // end of function execution time
     
     cout.rdbuf(orig_buf);
     
@@ -909,14 +907,9 @@ int main(int argc, char *argv[]){
     cout << "\n\n\nRAM[170] - RAM[250] PRINT (FOR MATRIX MULTIPLY BENCHMARK):" << endl;
     for(int i = 170; i < 251; i++){
         cout << global_mem.get_ram()[i] << endl;
-    } 
-    
-    auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-    int time = duration.count() + added_time;
-    if(pipe_used){
-        time = time - (0.18 * time);
     }
-    cout << "\nTime to run: " << time << "ms" << endl;
+    
+    cout << "Cycles to run: " << global_mem.get_cycles() + cycles << " cycles" << endl;
     
     return 0;
 }

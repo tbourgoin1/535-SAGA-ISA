@@ -68,9 +68,9 @@ int memory::write(string addr, string data, int mode){ //respond with "wait" or 
     if(mode == 1){ // cache mode
         if(this->cache[address][9] == '0'){ // checking valid bit - invalid case. Can just write as it's empty.
             this->cache[address] = memory::cache_write(tag, index, offset, dirty, valid, data, address);
-            cycles++;
+            this->cycles++; // 1 cycle for cache access
         }
-        else if(this->cache[address][9] == '1'){ // checking valid bit - valid case. Need to do additional checks as it's been written to before
+        else{ // checking valid bit - valid case. Need to do additional checks as it's been written to before
             if(this->cache[address][8] == '1'){ // check dirty bit, if 1 then need to write back to ram before writing to cache
                 // write back all 4 words in cache line to memory
                 int ram_address = memory::binary_int( stoll(this->cache[address].substr(0,2) + index + offset) );
@@ -78,7 +78,7 @@ int memory::write(string addr, string data, int mode){ //respond with "wait" or 
                 this->ram[ram_address+1] = this->cache[address].substr(42, 32); // data2
                 this->ram[ram_address+2] = this->cache[address].substr(74, 32); // data3
                 this->ram[ram_address+3] = this->cache[address].substr(106, 32); // data4
-                this->cycles = this->cycles + 12; // (4 * 3) = 12 cycles for 4 memory accesses
+                this->cycles = this->cycles + 97; // cycles for memory access
             }
             this->cache[address] = memory::cache_write(tag, index, offset, dirty, valid, data, address);
             this->cycles++; // +1 for cache access
@@ -88,7 +88,7 @@ int memory::write(string addr, string data, int mode){ //respond with "wait" or 
     else{ // no cache mode, just write to main memory
         int ram_address = memory::binary_int( stoll(tag + index + offset) ); // index of array of ram we need to write to (address we're writing to)
         this->ram[ram_address] = data; // write
-        this->cycles = this->cycles + 3; // 3 cycles for ram write
+        this->cycles = this->cycles + 100; // 100 cycles for ram write
         cout << "RAM write no cache mode stall" << endl;
     }
 
@@ -161,10 +161,10 @@ string memory::read(string addr, int mode){ //respond with "wait" or "done" and 
             int ram_address = memory::binary_int( stoll( tag + index + "00" ) );
             string new_write = tag + index + offset + dirty + "1" + this->ram[ram_address] + this->ram[ram_address+1] + this->ram[ram_address+2] + this->ram[ram_address+3];
             this->cache[cache_address] = new_write;
+            this->cycles++;
         }
 
         string line = this->cache[cache_address]; // the line of cache we want to initially look at (matches index)
-        this->cycles++;
         if(tag == line.substr(0, 2)){ // found the index in the cache, now make sure the tags equal. if so, CACHE HIT
             if(offset == "00") //if offset is 00, get first piece of data (word) in line
                 data = line.substr(10, 32);
@@ -190,7 +190,7 @@ string memory::read(string addr, int mode){ //respond with "wait" or "done" and 
                 this->ram[old_ram_address + i] = this->cache[cache_address].substr(10 + (32 * i), 32);
             }
             this->cache[cache_address] = memory::cache_write(tag, index, offset, dirty, valid, this->ram[ram_address], cache_address);
-            this->cycles = this->cycles + 13;
+            this->cycles = this->cycles + 97;
 
             cout << "cycle count: " << this->cycles << endl; // after every read print the # of cycles
             cout << "read cache miss stall" << endl;
@@ -201,6 +201,7 @@ string memory::read(string addr, int mode){ //respond with "wait" or "done" and 
     else{ // don't use the cache. simply pull from ram
         int ram_address = memory::binary_int( stoll( tag + index + offset ) );
         cout << "read main memory no cache stall" << endl;
+        this->cycles = this->cycles + 100;
         return this->ram[ram_address];
     }
 
