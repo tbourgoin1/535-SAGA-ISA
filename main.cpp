@@ -785,6 +785,7 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
 }
 
 int main(int argc, char *argv[]){
+    streambuf* orig_buf = cout.rdbuf();
     string reg[16]; // registers
 
     ifstream file_reader; // reads commands.txt for each command
@@ -865,6 +866,8 @@ int main(int argc, char *argv[]){
     chrono::system_clock::time_point start; // start of function execution time
     // first bit is cache option, second is pipe option
     // 0 = no, 1 = yes
+
+    cout.rdbuf(NULL);
     bool pipe_used;
     while(1){
         cin >> run_mode;
@@ -886,6 +889,8 @@ int main(int argc, char *argv[]){
     }
 
     chrono::system_clock::time_point end = chrono::system_clock::now(); // end of function execution time
+    
+    cout.rdbuf(orig_buf);
     
     cout << "\n\n\nFULL CACHE PRINT:" << endl;
     for(int i = 0; i < 16; i++){
