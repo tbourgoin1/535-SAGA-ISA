@@ -10,8 +10,8 @@
 #include <SDL_ttf.h>
 using namespace std;
 
-#define WINDOW_WIDTH 300
-#define WINDOW_HEIGHT (WINDOW_WIDTH)
+#define WINDOW_WIDTH 900
+#define WINDOW_HEIGHT 900
 
 memory global_mem;
 int global_pc = 0;
@@ -816,6 +816,22 @@ void get_text_and_rect(SDL_Renderer *renderer, int x, int y, char *text,
     rect->h = text_height;
 }
 
+char* convert_str(string str) {
+	char *cstr = new char[str.length() + 1];
+	strcpy(cstr, str.c_str());
+	return cstr;
+}
+
+string *cache_to_string(int index){
+    string *result = new string[5];
+    result[0] = global_mem.get_cache()[index].substr(0,2) + " " + global_mem.get_cache()[index].substr(2,4) + " " + global_mem.get_cache()[index].substr(6,2) + " " + global_mem.get_cache()[index].substr(8,1) + " " + global_mem.get_cache()[index].substr(9,1);
+    result[1] = global_mem.get_cache()[index].substr(10,32);
+    result[2] = global_mem.get_cache()[index].substr(42,32);
+    result[3] = global_mem.get_cache()[index].substr(74,32);
+    result[4] = global_mem.get_cache()[index].substr(106,32);
+    return result;
+}
+
 int main(int argc, char *argv[]){
     streambuf* orig_buf = cout.rdbuf();
     string reg[16]; // registers
@@ -941,9 +957,9 @@ int main(int argc, char *argv[]){
     cout << "Cycles to run: " << global_mem.get_cycles() + cycles << " cycles" << endl;
     
     SDL_Event event;
-    SDL_Rect rect1, rect2;
+    SDL_Rect rects[256];
     SDL_Renderer *renderer;
-    SDL_Texture *texture1, *texture2;
+    SDL_Texture *textures[256];
     SDL_Window *window;
     char *font_path;
     int quit;
@@ -953,14 +969,30 @@ int main(int argc, char *argv[]){
     SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(WINDOW_WIDTH, WINDOW_WIDTH, 0, &window, &renderer);
     TTF_Init();
-    TTF_Font *font = TTF_OpenFont(font_path, 24);
+    TTF_Font *font = TTF_OpenFont(font_path, 12);
     if (font == NULL) {
         fprintf(stderr, "error: font not found\n");
         exit(EXIT_FAILURE);
     }
-    get_text_and_rect(renderer, 0, 0, (char*)"hello", font, &texture1, &rect1);
-    get_text_and_rect(renderer, 0, rect1.y + rect1.h, (char*)"world", font, &texture2, &rect2);
-
+    //cout << "REGISTER " << reg[0] << endl;
+    //char *test = convert_str(reg[0]);
+    get_text_and_rect(renderer, 0, 0, (char*)"cache", font, &(textures[0]), &(rects[0]));
+    /*
+    for (int i = 0; i < 16; i++){
+    	string *lines_to_print = cache_to_string(i);
+    	for(int j = 0; j < 5; j++){
+    		get_text_and_rect(renderer, 0, rects[i].y + rects[i].h, convert_str(lines_to_print[j]), font, &(textures[i+1]), &(rects[i+1]));
+    	}
+  	}
+		*/
+		for(int i = 0; i < 16; i++){
+			string *lines_to_print = cache_to_string(i);
+			get_text_and_rect(renderer, 0, rects[i+(i*4)].y + rects[i+(i*4)].h, convert_str(lines_to_print[0]), font, &(textures[i+1+(i*4)]), &(rects[i+1+(i*4)]));
+			get_text_and_rect(renderer, 0, rects[i+1+(i*4)].y + rects[i+1+(i*4)].h, convert_str(lines_to_print[1]), font, &(textures[i+2+(i*4)]), &(rects[i+2+(i*4)]));
+			get_text_and_rect(renderer, 0, rects[i+2+(i*4)].y + rects[i+2+(i*4)].h, convert_str(lines_to_print[2]), font, &(textures[i+3+(i*4)]), &(rects[i+3+(i*4)]));
+			get_text_and_rect(renderer, 0, rects[i+3+(i*4)].y + rects[i+3+(i*4)].h, convert_str(lines_to_print[3]), font, &(textures[i+4+(i*4)]), &(rects[i+4+(i*4)]));
+			get_text_and_rect(renderer, 0, rects[i+4+(i*4)].y + rects[i+4+(i*4)].h, convert_str(lines_to_print[4]), font, &(textures[i+5+(i*4)]), &(rects[i+5+(i*4)]));
+		}
     quit = 0;
     while (!quit) {
         while (SDL_PollEvent(&event) == 1) {
@@ -972,14 +1004,15 @@ int main(int argc, char *argv[]){
         SDL_RenderClear(renderer);
 
         // Use TTF textures
-        SDL_RenderCopy(renderer, texture1, NULL, &rect1);
-        SDL_RenderCopy(renderer, texture2, NULL, &rect2);
+        for(int i = 0; i < 81; i++){
+        SDL_RenderCopy(renderer, textures[i], NULL, &(rects[i]));
+      	}
 
         SDL_RenderPresent(renderer);
     }
-
-    SDL_DestroyTexture(texture1);
-    SDL_DestroyTexture(texture2);
+    for(int i = 0; i < 81; i++){
+    	SDL_DestroyTexture(textures[i]);
+    }
     TTF_Quit();
 
     SDL_DestroyRenderer(renderer);
