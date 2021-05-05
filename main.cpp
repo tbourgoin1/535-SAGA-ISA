@@ -10,7 +10,7 @@
 #include <SDL_ttf.h>
 using namespace std;
 
-#define WINDOW_WIDTH 900
+#define WINDOW_WIDTH 1200
 #define WINDOW_HEIGHT 900
 
 memory global_mem;
@@ -59,6 +59,42 @@ string int_to_binary(int n, bool eight_bit) {
         }
         return binary;
     }
+}
+
+char* convert_str(string str) {
+	char *cstr = new char[str.length() + 1];
+	strcpy(cstr, str.c_str());
+	return cstr;
+}
+
+/*
+- x, y: upper left corner.
+- texture, rect: outputs.
+*/
+void get_text_and_rect(SDL_Renderer *renderer, int x, int y, char *text,
+        TTF_Font *font, SDL_Texture **texture, SDL_Rect *rect) {
+    int text_width;
+    int text_height;
+    SDL_Surface *surface;
+    SDL_Color textColor = {255, 255, 255, 0};
+
+    surface = TTF_RenderText_Solid(font, text, textColor);
+    *texture = SDL_CreateTextureFromSurface(renderer, surface);
+    text_width = surface->w;
+    text_height = surface->h;
+    SDL_FreeSurface(surface);
+    rect->x = x;
+    rect->y = y;
+    rect->w = text_width;
+    rect->h = text_height;
+}
+
+string *cache_to_string(int index){
+    string *result = new string[5];
+    result[0] = global_mem.get_cache()[index].substr(0,2) + " " + global_mem.get_cache()[index].substr(2,4) + " " + global_mem.get_cache()[index].substr(6,2) + " " + global_mem.get_cache()[index].substr(8,1) + " " + global_mem.get_cache()[index].substr(9,1);
+    result[1] = global_mem.get_cache()[index].substr(10,32) + " " + global_mem.get_cache()[index].substr(74,32);
+    result[2] = global_mem.get_cache()[index].substr(42,32) + " " + global_mem.get_cache()[index].substr(106,32);
+    return result;
 }
 
 bool cond_code_helper(string cond_code){ // returns false if global_cmp and cond code don't match up, true if they do
@@ -637,7 +673,13 @@ to_return fetch(int pc, memory mem, string reg[]) {
     return me;
 }
 
-void single_instruction_pipe(vector<vector<string>> instructs, string reg[], int pc_limit){
+void single_instruction_pipe(vector<vector<string>> instructs, string reg[], int pc_limit,
+		SDL_Event event,
+    SDL_Rect rects[128],
+    SDL_Renderer *renderer,
+    SDL_Texture *textures[128],
+    SDL_Window *window,
+    TTF_Font *font){
     to_return ret_val;
     vector<string> new_ins;
     while(!instructs.empty()){ // until we run out of instructions
@@ -678,14 +720,46 @@ void single_instruction_pipe(vector<vector<string>> instructs, string reg[], int
                     instructs.push_back(new_ins);
                 }
                 cycles+=5; // 1 cycle per stage, so when we're in writeback that's 5 for the current instruction
+                get_text_and_rect(renderer, 3, 0, (char*)"cache", font, &(textures[0]), &(rects[0]));
+								for(int i = 0; i < 16; i++){
+									string *lines_to_print = cache_to_string(i);
+									get_text_and_rect(renderer, 3, rects[i+(i*2)].y + rects[i+(i*2)].h, convert_str(lines_to_print[0]), font, &(textures[i+1+(i*2)]), &(rects[i+1+(i*2)]));
+									get_text_and_rect(renderer, 3, rects[i+1+(i*2)].y + rects[i+1+(i*2)].h, convert_str(lines_to_print[1]), font, &(textures[i+2+(i*2)]), &(rects[i+2+(i*2)]));
+									get_text_and_rect(renderer, 3, rects[i+2+(i*2)].y + rects[i+2+(i*2)].h, convert_str(lines_to_print[2]), font, &(textures[i+3+(i*2)]), &(rects[i+3+(i*2)]));
+								}
+								get_text_and_rect(renderer, 13+rects[2].w, 0, (char*)"RAM", font, &(textures[49]), &(rects[49]));
+								char* to_print;
+								for(int i = 0; i < 64; i++){
+									to_print = convert_str(global_mem.get_ram()[i] + " " + global_mem.get_ram()[i+64] + " " + global_mem.get_ram()[i+128] + " " + global_mem.get_ram()[i+192]);
+									get_text_and_rect(renderer, 13+rects[2].w, rects[49+i].y + rects[2+i].h, to_print, font, &(textures[50+i]), &(rects[50+i]));
+								}
+								SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+								SDL_RenderClear(renderer);
+
+								// Use TTF textures
+								for(int i = 0; i < 114; i++){
+									if(SDL_RenderCopy(renderer, textures[i], NULL, &(rects[i])) < 0){
+										cout << "RENDERCOPY ERROR: " << SDL_GetError();
+									}
+								}
+								SDL_RenderPresent(renderer);
+								for(int i = 0; i < 114; i++){
+										SDL_DestroyTexture(textures[i]);
+								}
             }
         }
         string x;
       //  cin >> x;
+    
     }
 }
 
-void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string reg[], int pc_limit){
+void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string reg[], int pc_limit,SDL_Event event,
+    SDL_Rect rects[128],
+    SDL_Renderer *renderer,
+    SDL_Texture *textures[128],
+    SDL_Window *window,
+    TTF_Font *font){
     to_return ret_val;
     vector<string> new_ins;
     while(!instructs.empty()){ // until we run out of instructions
@@ -742,7 +816,7 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
                                     j = j - 1; // adjust since we deleted a member of the vector
                                 }
                             }
-                            concurrent_pipe(hazard_instructs, true, reg, pc_limit); // execute those blocking instructions only to completion
+                            concurrent_pipe(hazard_instructs, true, reg, pc_limit, event, rects, renderer, textures, window, font); // execute those blocking instructions only to completion
                             break; // now that we've found a blocking ins and executed it, stop the loop. Continue with the instructions we have in the original vector  
                         }
                     }
@@ -783,6 +857,30 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
                 writeback(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][6], global_mem, reg, global_pc); //  execute writeback, no need for return val
                 instructs.erase(instructs.begin()); // take out the instruction just used
                 cycles++;
+                get_text_and_rect(renderer, 0, 0, (char*)"cache", font, &(textures[0]), &(rects[0]));
+								for(int i = 0; i < 16; i++){
+									string *lines_to_print = cache_to_string(i);
+									get_text_and_rect(renderer, 0, rects[i+(i*2)].y + rects[i+(i*2)].h, convert_str(lines_to_print[0]), font, &(textures[i+1+(i*2)]), &(rects[i+1+(i*2)]));
+									get_text_and_rect(renderer, 0, rects[i+1+(i*2)].y + rects[i+1+(i*2)].h, convert_str(lines_to_print[1]), font, &(textures[i+2+(i*2)]), &(rects[i+2+(i*2)]));
+									get_text_and_rect(renderer, 0, rects[i+2+(i*2)].y + rects[i+2+(i*2)].h, convert_str(lines_to_print[2]), font, &(textures[i+3+(i*2)]), &(rects[i+3+(i*2)]));
+								}
+								get_text_and_rect(renderer, 10+rects[2].w, 0, (char*)"RAM", font, &(textures[49]), &(rects[49]));
+								char* to_print;
+								for(int i = 0; i < 64; i++){
+									to_print = convert_str(global_mem.get_ram()[i] + " " + global_mem.get_ram()[i+64] + " " + global_mem.get_ram()[i+128] + " " + global_mem.get_ram()[i+192]);
+									get_text_and_rect(renderer, 10+rects[2].w, rects[49+i].y + rects[2+i].h, to_print, font, &(textures[50+i]), &(rects[50+i]));
+								}
+								SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+								SDL_RenderClear(renderer);
+
+								// Use TTF textures
+								for(int i = 0; i < 114; i++){
+									SDL_RenderCopy(renderer, textures[i], NULL, &(rects[i]));
+								}
+								SDL_RenderPresent(renderer);
+								for(int i = 0; i < 114; i++){
+										SDL_DestroyTexture(textures[i]);
+								}
             }
         }
         if(instructs.size() < 5 && pc_limit - global_pc > 0 && !hazard_mode){ // pipe isn't full, add there IS a next instruction to add. so add it
@@ -794,47 +892,29 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
     }
 }
 
-/*
-- x, y: upper left corner.
-- texture, rect: outputs.
-*/
-void get_text_and_rect(SDL_Renderer *renderer, int x, int y, char *text,
-        TTF_Font *font, SDL_Texture **texture, SDL_Rect *rect) {
-    int text_width;
-    int text_height;
-    SDL_Surface *surface;
-    SDL_Color textColor = {255, 255, 255, 0};
-
-    surface = TTF_RenderText_Solid(font, text, textColor);
-    *texture = SDL_CreateTextureFromSurface(renderer, surface);
-    text_width = surface->w;
-    text_height = surface->h;
-    SDL_FreeSurface(surface);
-    rect->x = x;
-    rect->y = y;
-    rect->w = text_width;
-    rect->h = text_height;
-}
-
-char* convert_str(string str) {
-	char *cstr = new char[str.length() + 1];
-	strcpy(cstr, str.c_str());
-	return cstr;
-}
-
-string *cache_to_string(int index){
-    string *result = new string[5];
-    result[0] = global_mem.get_cache()[index].substr(0,2) + " " + global_mem.get_cache()[index].substr(2,4) + " " + global_mem.get_cache()[index].substr(6,2) + " " + global_mem.get_cache()[index].substr(8,1) + " " + global_mem.get_cache()[index].substr(9,1);
-    result[1] = global_mem.get_cache()[index].substr(10,32);
-    result[2] = global_mem.get_cache()[index].substr(42,32);
-    result[3] = global_mem.get_cache()[index].substr(74,32);
-    result[4] = global_mem.get_cache()[index].substr(106,32);
-    return result;
-}
-
 int main(int argc, char *argv[]){
     streambuf* orig_buf = cout.rdbuf();
     string reg[16]; // registers
+
+    SDL_Event event;
+    SDL_Rect rects[128];
+    SDL_Renderer *renderer;
+    SDL_Texture *textures[128];
+    SDL_Window *window;
+    char *font_path;
+    int quit;
+
+    font_path = (char*)"./opensans.ttf";
+
+    SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO);
+    SDL_CreateWindowAndRenderer(WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer);
+    TTF_Init();
+
+    TTF_Font *font = TTF_OpenFont(font_path, 11);
+    if (font == NULL) {
+        fprintf(stderr, "error: font not found\n");
+        exit(EXIT_FAILURE);
+    }
 
     ifstream file_reader; // reads commands.txt for each command
      string command; // each command from file_reader
@@ -920,12 +1000,12 @@ int main(int argc, char *argv[]){
         cin >> run_mode;
         if(run_mode == "n"){
             pipe_used = false;
-            single_instruction_pipe(instructs, reg, pc_limit); // execute single threaded pipeline
+            single_instruction_pipe(instructs, reg, pc_limit, event, rects, renderer, textures, window, font); // execute single threaded pipeline
             break;
         }
         if(run_mode == "y"){
             pipe_used = true;
-            concurrent_pipe(instructs, false, reg, pc_limit); // execute multithreaded pipeline
+            concurrent_pipe(instructs, false, reg, pc_limit, event, rects, renderer, textures, window, font); // execute multithreaded pipeline
             break;
         }
         else{
@@ -956,63 +1036,6 @@ int main(int argc, char *argv[]){
     
     cout << "Cycles to run: " << global_mem.get_cycles() + cycles << " cycles" << endl;
     
-    SDL_Event event;
-    SDL_Rect rects[256];
-    SDL_Renderer *renderer;
-    SDL_Texture *textures[256];
-    SDL_Window *window;
-    char *font_path;
-    int quit;
-
-    font_path = (char*)"./opensans.ttf";
-
-    SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO);
-    SDL_CreateWindowAndRenderer(WINDOW_WIDTH, WINDOW_WIDTH, 0, &window, &renderer);
-    TTF_Init();
-    TTF_Font *font = TTF_OpenFont(font_path, 12);
-    if (font == NULL) {
-        fprintf(stderr, "error: font not found\n");
-        exit(EXIT_FAILURE);
-    }
-    //cout << "REGISTER " << reg[0] << endl;
-    //char *test = convert_str(reg[0]);
-    get_text_and_rect(renderer, 0, 0, (char*)"cache", font, &(textures[0]), &(rects[0]));
-    /*
-    for (int i = 0; i < 16; i++){
-    	string *lines_to_print = cache_to_string(i);
-    	for(int j = 0; j < 5; j++){
-    		get_text_and_rect(renderer, 0, rects[i].y + rects[i].h, convert_str(lines_to_print[j]), font, &(textures[i+1]), &(rects[i+1]));
-    	}
-  	}
-		*/
-		for(int i = 0; i < 16; i++){
-			string *lines_to_print = cache_to_string(i);
-			get_text_and_rect(renderer, 0, rects[i+(i*4)].y + rects[i+(i*4)].h, convert_str(lines_to_print[0]), font, &(textures[i+1+(i*4)]), &(rects[i+1+(i*4)]));
-			get_text_and_rect(renderer, 0, rects[i+1+(i*4)].y + rects[i+1+(i*4)].h, convert_str(lines_to_print[1]), font, &(textures[i+2+(i*4)]), &(rects[i+2+(i*4)]));
-			get_text_and_rect(renderer, 0, rects[i+2+(i*4)].y + rects[i+2+(i*4)].h, convert_str(lines_to_print[2]), font, &(textures[i+3+(i*4)]), &(rects[i+3+(i*4)]));
-			get_text_and_rect(renderer, 0, rects[i+3+(i*4)].y + rects[i+3+(i*4)].h, convert_str(lines_to_print[3]), font, &(textures[i+4+(i*4)]), &(rects[i+4+(i*4)]));
-			get_text_and_rect(renderer, 0, rects[i+4+(i*4)].y + rects[i+4+(i*4)].h, convert_str(lines_to_print[4]), font, &(textures[i+5+(i*4)]), &(rects[i+5+(i*4)]));
-		}
-    quit = 0;
-    while (!quit) {
-        while (SDL_PollEvent(&event) == 1) {
-            if (event.type == SDL_QUIT) {
-                quit = 1;
-            }
-        }
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-        SDL_RenderClear(renderer);
-
-        // Use TTF textures
-        for(int i = 0; i < 81; i++){
-        SDL_RenderCopy(renderer, textures[i], NULL, &(rects[i]));
-      	}
-
-        SDL_RenderPresent(renderer);
-    }
-    for(int i = 0; i < 81; i++){
-    	SDL_DestroyTexture(textures[i]);
-    }
     TTF_Quit();
 
     SDL_DestroyRenderer(renderer);
