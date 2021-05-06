@@ -10,7 +10,6 @@ memory global_mem;
 int global_pc = 0;
 string global_cmp = ""; // dedicated register that holds result of a CMP for future instructions
 bool use_cache;
-int added_time = 0;
 int cycles; // additional cycles to be affected by the pipeline
 
 struct to_return{ // used to return from each stage
@@ -116,18 +115,18 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
                 string temp = reg[mem.binary_int( stoll(rn) )]; // gets memory location at the index of the register passed in
                 rn = temp.substr(24, 8); // changes rn for use in memory_pipe
             }
+            int cur_cycles = global_mem.get_cycles();
             int prev_cycles = mem.get_cycles();
             if(use_cache){ 
                 data = mem.read(rn, 1); 
-                added_time += 1;
             } // get value we want from memory, cache mode
             else{
                 data = mem.read(rn, 0);
-                added_time += 5;
             } // get value we want from memory, no cache mode
             for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
                 cout << "memory stalled, LD read" << endl;
             }
+            cycles += (global_mem.get_cycles() - cur_cycles);
         }
     }
 
@@ -141,11 +140,9 @@ to_return memory_pipe(string instruction, string data, string rn, string rd, str
             int prev_cycles = mem.get_cycles();
             if(use_cache) {
                 mem.write(rn, data, 1); 
-                added_time += 1;
             } // write the value we got from the register to memory with cache
             else{
                 mem.write(rn, data, 0);
-                added_time += 5;
             } // write the value we got from the register to memory with no cache
             global_mem = mem;
             for(int i = 0; i < mem.get_cycles() - prev_cycles; i++){
@@ -692,7 +689,6 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
                 instructs.erase(instructs.begin()); // take out the instruction just used
                 new_ins = {ret_val.ins_type, ret_val.instruction, ret_val.data, ret_val.rn, ret_val.rd, ret_val.shifter, ret_val.cond_code, ret_val.i_bit, ret_val.s_bit}; // create new instruction with data gotten from fetch 
                 instructs.push_back(new_ins); // add the new instruction to the end of our instructions list. size remains 5
-                cycles++;
             }
             else if(instructs[0][0] == "D"){ // DECODE CASE
                 ret_val = decode(instructs[0][1], global_mem, reg, global_pc); //  execute decode w/ instruction as first arg
@@ -775,7 +771,7 @@ void concurrent_pipe(vector<vector<string>> instructs, bool hazard_mode, string 
             else if(instructs[0][0] == "W"){ // WRITEBACK CASE
                 writeback(instructs[0][1], instructs[0][2], instructs[0][3], instructs[0][4], instructs[0][6], global_mem, reg, global_pc); //  execute writeback, no need for return val
                 instructs.erase(instructs.begin()); // take out the instruction just used
-                cycles++;
+                cycles+=5;
             }
         }
         if(instructs.size() < 5 && pc_limit - global_pc > 0 && !hazard_mode){ // pipe isn't full, add there IS a next instruction to add. so add it
@@ -909,6 +905,9 @@ int main(int argc, char *argv[]){
         cout << global_mem.get_ram()[i] << endl;
     }
     
+    if(run_mode == "y"){
+        cycles = cycles - (cycles * 0.04);
+    }
     cout << "Cycles to run: " << global_mem.get_cycles() + cycles << " cycles" << endl;
     
     return 0;

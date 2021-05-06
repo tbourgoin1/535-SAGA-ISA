@@ -78,10 +78,8 @@ int memory::write(string addr, string data, int mode){ //respond with "wait" or 
                 this->ram[ram_address+1] = this->cache[address].substr(42, 32); // data2
                 this->ram[ram_address+2] = this->cache[address].substr(74, 32); // data3
                 this->ram[ram_address+3] = this->cache[address].substr(106, 32); // data4
-                this->cycles = this->cycles + 97; // cycles for memory access
             }
             this->cache[address] = memory::cache_write(tag, index, offset, dirty, valid, data, address);
-            this->cycles++; // +1 for cache access
             cout << "cache write/eviction/memory write back stall" << endl;
         }
     }
@@ -190,7 +188,7 @@ string memory::read(string addr, int mode){ //respond with "wait" or "done" and 
                 this->ram[old_ram_address + i] = this->cache[cache_address].substr(10 + (32 * i), 32);
             }
             this->cache[cache_address] = memory::cache_write(tag, index, offset, dirty, valid, this->ram[ram_address], cache_address);
-            this->cycles = this->cycles + 97;
+            this->cycles = this->cycles + 100;
 
             cout << "cycle count: " << this->cycles << endl; // after every read print the # of cycles
             cout << "read cache miss stall" << endl;
